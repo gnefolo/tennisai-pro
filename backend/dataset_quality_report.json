@@ -1,0 +1,530 @@
+{
+  "win_dataset": {
+    "dataset": "slam_all_features.csv",
+    "rows": 3830332,
+    "columns": 34,
+    "target_col": "point_won",
+    "target_distribution": {
+      "0": 1919435,
+      "1": 1910897
+    },
+    "missing_features": [],
+    "constant_features": [],
+    "high_missing_features": {
+      "RallyCount": 0.365792312520168
+    },
+    "non_numeric_expected_features": [],
+    "range_checks": {
+      "pct_service_points_won": {
+        "outside_0_1_count": 0
+      },
+      "pct_return_points_won": {
+        "outside_0_1_count": 0
+      },
+      "pct_first_serve_points_won": {
+        "outside_0_1_count": 0
+      },
+      "pct_second_serve_points_won": {
+        "outside_0_1_count": 0
+      },
+      "last_n_points_won_5": {
+        "outside_0_1_count": 0
+      },
+      "ServeNumber": {
+        "invalid_values_count": 866224
+      },
+      "is_player_on_serve": {
+        "invalid_values_count": 0
+      }
+    },
+    "numeric_summary": {
+      "SetNo": {
+        "min": 1.0,
+        "max": 5.0,
+        "mean": 2.1413294987897786,
+        "std": 1.075422797668486,
+        "missing_pct": 0.00033417468772941873
+      },
+      "GameNo": {
+        "min": 1.0,
+        "max": 74.0,
+        "mean": 7.7916089935576744,
+        "std": 7.378106641844724,
+        "missing_pct": 0.00033417468772941873
+      },
+      "PointNumber": {
+        "min": 0.0,
+        "max": 569.0,
+        "mean": 104.33928808259962,
+        "std": 73.43821523548041,
+        "missing_pct": 0.0
+      },
+      "P1GamesWon": {
+        "min": 0.0,
+        "max": 26.0,
+        "mean": 2.3883039141637235,
+        "std": 1.84064099300624,
+        "missing_pct": 0.19323912391928427
+      },
+      "P2GamesWon": {
+        "min": 0.0,
+        "max": 24.0,
+        "mean": 2.3863020773668175,
+        "std": 1.842301471289253,
+        "missing_pct": 0.19323912391928427
+      },
+      "ServeNumber": {
+        "min": 0.0,
+        "max": 2.0,
+        "mean": 1.312103774187285,
+        "std": 0.5323729296053151,
+        "missing_pct": 0.1986104598765851
+      },
+      "RallyCount": {
+        "min": 0.0,
+        "max": 139.0,
+        "mean": 3.313045389766123,
+        "std": 3.546761651448061,
+        "missing_pct": 0.365792312520168
+      },
+      "is_player_on_serve": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.49888573627560223,
+        "std": 0.4999988236831549,
+        "missing_pct": 0.0
+      },
+      "service_points_played": {
+        "min": 0.0,
+        "max": 291.0,
+        "mean": 52.158655176626986,
+        "std": 37.14469045462329,
+        "missing_pct": 0.0
+      },
+      "service_points_won": {
+        "min": 0.0,
+        "max": 213.0,
+        "mean": 32.479444079521045,
+        "std": 24.055149361009796,
+        "missing_pct": 0.0
+      },
+      "pct_service_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.6080562067577029,
+        "std": 0.15245303477211716,
+        "missing_pct": 0.0
+      },
+      "return_points_played": {
+        "min": 0.0,
+        "max": 335.0,
+        "mean": 52.525008276045,
+        "std": 37.197573351376654,
+        "missing_pct": 0.0
+      },
+      "return_points_won": {
+        "min": 0.0,
+        "max": 106.0,
+        "mean": 19.679178462859095,
+        "std": 14.403018119649571,
+        "missing_pct": 0.0
+      },
+      "pct_return_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.36771119039968997,
+        "std": 0.1331291162250456,
+        "missing_pct": 0.0
+      },
+      "first_serve_points_played": {
+        "min": 0.0,
+        "max": 218.0,
+        "mean": 25.94723355573355,
+        "std": 24.77912093080139,
+        "missing_pct": 0.0
+      },
+      "first_serve_points_won_cum": {
+        "min": 0.0,
+        "max": 171.0,
+        "mean": 18.234394042083036,
+        "std": 17.907560848034493,
+        "missing_pct": 0.0
+      },
+      "pct_first_serve_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.5484841907680267,
+        "std": 0.31653590781843105,
+        "missing_pct": 0.0
+      },
+      "second_serve_points_played": {
+        "min": 0.0,
+        "max": 99.0,
+        "mean": 14.656644384873164,
+        "std": 14.29904969705615,
+        "missing_pct": 0.0
+      },
+      "second_serve_points_won_cum": {
+        "min": 0.0,
+        "max": 58.0,
+        "mean": 7.951904952364442,
+        "std": 8.038904836062427,
+        "missing_pct": 0.0
+      },
+      "pct_second_serve_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.4222751861458658,
+        "std": 0.28011709805384055,
+        "missing_pct": 0.0
+      },
+      "last_n_points_won_5": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.4976928022601345,
+        "std": 0.2312916541740007,
+        "missing_pct": 0.0
+      },
+      "is_game_point": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.10266499091984715,
+        "std": 0.30352086355091407,
+        "missing_pct": 0.0
+      },
+      "is_break_point": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.03269298849290349,
+        "std": 0.1778318454398786,
+        "missing_pct": 0.0
+      },
+      "is_game_point_against": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.10266499091984715,
+        "std": 0.30352086355091396,
+        "missing_pct": 0.0
+      },
+      "score_pressure_index": {
+        "min": 0.0,
+        "max": 3.0,
+        "mean": 0.37338094974534847,
+        "std": 0.7971547496005209,
+        "missing_pct": 0.0
+      },
+      "serve_advantage": {
+        "min": -1.0,
+        "max": 1.0,
+        "mean": 0.24034501635801306,
+        "std": 0.2013047064589364,
+        "missing_pct": 0.0
+      },
+      "first_second_gap": {
+        "min": -1.0,
+        "max": 1.0,
+        "mean": 0.12620900462216147,
+        "std": 0.21237719609805716,
+        "missing_pct": 0.0
+      },
+      "momentum_trend": {
+        "min": -0.5,
+        "max": 0.5,
+        "mean": -0.002307197739865187,
+        "std": 0.2312916541740007,
+        "missing_pct": 0.0
+      }
+    },
+    "high_correlations": [
+      {
+        "feature_1": "last_n_points_won_5",
+        "feature_2": "momentum_trend",
+        "correlation": 0.9999999999999999
+      },
+      {
+        "feature_1": "PointNumber",
+        "feature_2": "service_points_played",
+        "correlation": 0.9875329500924235
+      },
+      {
+        "feature_1": "PointNumber",
+        "feature_2": "return_points_played",
+        "correlation": 0.9869735375184346
+      },
+      {
+        "feature_1": "first_serve_points_played",
+        "feature_2": "first_serve_points_won_cum",
+        "correlation": 0.9830120608872519
+      }
+    ],
+    "leakage_warnings": [
+      "Controllare leakage potenziale: service_points_won potrebbe incorporare informazione cumulata post-punto se calcolata male.",
+      "Controllare leakage potenziale: return_points_won potrebbe incorporare informazione cumulata post-punto se calcolata male."
+    ]
+  },
+  "pattern_dataset": {
+    "dataset": "slam_all_features_with_patterns.csv",
+    "rows": 3830332,
+    "columns": 36,
+    "target_col": "pattern_id_rule",
+    "target_distribution": {
+      "1": 1174364,
+      "7": 1144962,
+      "3": 736534,
+      "6": 661642,
+      "5": 112830
+    },
+    "missing_features": [],
+    "constant_features": [],
+    "high_missing_features": {
+      "RallyCount": 0.365792312520168
+    },
+    "non_numeric_expected_features": [],
+    "range_checks": {
+      "pct_service_points_won": {
+        "outside_0_1_count": 0
+      },
+      "pct_return_points_won": {
+        "outside_0_1_count": 0
+      },
+      "pct_first_serve_points_won": {
+        "outside_0_1_count": 0
+      },
+      "pct_second_serve_points_won": {
+        "outside_0_1_count": 0
+      },
+      "last_n_points_won_5": {
+        "outside_0_1_count": 0
+      },
+      "ServeNumber": {
+        "invalid_values_count": 866224
+      },
+      "is_player_on_serve": {
+        "invalid_values_count": 0
+      }
+    },
+    "numeric_summary": {
+      "SetNo": {
+        "min": 1.0,
+        "max": 5.0,
+        "mean": 2.1413294987897786,
+        "std": 1.075422797668486,
+        "missing_pct": 0.00033417468772941873
+      },
+      "GameNo": {
+        "min": 1.0,
+        "max": 74.0,
+        "mean": 7.7916089935576744,
+        "std": 7.378106641844724,
+        "missing_pct": 0.00033417468772941873
+      },
+      "PointNumber": {
+        "min": 0.0,
+        "max": 569.0,
+        "mean": 104.33928808259962,
+        "std": 73.43821523548041,
+        "missing_pct": 0.0
+      },
+      "P1GamesWon": {
+        "min": 0.0,
+        "max": 26.0,
+        "mean": 2.3883039141637235,
+        "std": 1.84064099300624,
+        "missing_pct": 0.19323912391928427
+      },
+      "P2GamesWon": {
+        "min": 0.0,
+        "max": 24.0,
+        "mean": 2.3863020773668175,
+        "std": 1.842301471289253,
+        "missing_pct": 0.19323912391928427
+      },
+      "ServeNumber": {
+        "min": 0.0,
+        "max": 2.0,
+        "mean": 1.312103774187285,
+        "std": 0.5323729296053151,
+        "missing_pct": 0.1986104598765851
+      },
+      "RallyCount": {
+        "min": 0.0,
+        "max": 139.0,
+        "mean": 3.313045389766123,
+        "std": 3.546761651448061,
+        "missing_pct": 0.365792312520168
+      },
+      "is_player_on_serve": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.49888573627560223,
+        "std": 0.4999988236831549,
+        "missing_pct": 0.0
+      },
+      "service_points_played": {
+        "min": 0.0,
+        "max": 291.0,
+        "mean": 52.158655176626986,
+        "std": 37.14469045462329,
+        "missing_pct": 0.0
+      },
+      "service_points_won": {
+        "min": 0.0,
+        "max": 213.0,
+        "mean": 32.479444079521045,
+        "std": 24.055149361009796,
+        "missing_pct": 0.0
+      },
+      "pct_service_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.6080562067577029,
+        "std": 0.15245303477211716,
+        "missing_pct": 0.0
+      },
+      "return_points_played": {
+        "min": 0.0,
+        "max": 335.0,
+        "mean": 52.525008276045,
+        "std": 37.197573351376654,
+        "missing_pct": 0.0
+      },
+      "return_points_won": {
+        "min": 0.0,
+        "max": 106.0,
+        "mean": 19.679178462859095,
+        "std": 14.403018119649571,
+        "missing_pct": 0.0
+      },
+      "pct_return_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.36771119039968997,
+        "std": 0.1331291162250456,
+        "missing_pct": 0.0
+      },
+      "first_serve_points_played": {
+        "min": 0.0,
+        "max": 218.0,
+        "mean": 25.94723355573355,
+        "std": 24.77912093080139,
+        "missing_pct": 0.0
+      },
+      "first_serve_points_won_cum": {
+        "min": 0.0,
+        "max": 171.0,
+        "mean": 18.234394042083036,
+        "std": 17.907560848034493,
+        "missing_pct": 0.0
+      },
+      "pct_first_serve_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.5484841907680267,
+        "std": 0.31653590781843105,
+        "missing_pct": 0.0
+      },
+      "second_serve_points_played": {
+        "min": 0.0,
+        "max": 99.0,
+        "mean": 14.656644384873164,
+        "std": 14.29904969705615,
+        "missing_pct": 0.0
+      },
+      "second_serve_points_won_cum": {
+        "min": 0.0,
+        "max": 58.0,
+        "mean": 7.951904952364442,
+        "std": 8.038904836062427,
+        "missing_pct": 0.0
+      },
+      "pct_second_serve_points_won": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.4222751861458658,
+        "std": 0.28011709805384055,
+        "missing_pct": 0.0
+      },
+      "last_n_points_won_5": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.4976928022601345,
+        "std": 0.2312916541740007,
+        "missing_pct": 0.0
+      },
+      "is_game_point": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.10266499091984715,
+        "std": 0.30352086355091407,
+        "missing_pct": 0.0
+      },
+      "is_break_point": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.03269298849290349,
+        "std": 0.1778318454398786,
+        "missing_pct": 0.0
+      },
+      "is_game_point_against": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.10266499091984715,
+        "std": 0.30352086355091396,
+        "missing_pct": 0.0
+      },
+      "score_pressure_index": {
+        "min": 0.0,
+        "max": 3.0,
+        "mean": 0.37338094974534847,
+        "std": 0.7971547496005209,
+        "missing_pct": 0.0
+      },
+      "serve_advantage": {
+        "min": -1.0,
+        "max": 1.0,
+        "mean": 0.24034501635801306,
+        "std": 0.2013047064589364,
+        "missing_pct": 0.0
+      },
+      "first_second_gap": {
+        "min": -1.0,
+        "max": 1.0,
+        "mean": 0.12620900462216147,
+        "std": 0.21237719609805716,
+        "missing_pct": 0.0
+      },
+      "momentum_trend": {
+        "min": -0.5,
+        "max": 0.5,
+        "mean": -0.002307197739865187,
+        "std": 0.2312916541740007,
+        "missing_pct": 0.0
+      }
+    },
+    "high_correlations": [
+      {
+        "feature_1": "last_n_points_won_5",
+        "feature_2": "momentum_trend",
+        "correlation": 0.9999999999999999
+      },
+      {
+        "feature_1": "PointNumber",
+        "feature_2": "service_points_played",
+        "correlation": 0.9875329500924235
+      },
+      {
+        "feature_1": "PointNumber",
+        "feature_2": "return_points_played",
+        "correlation": 0.9869735375184346
+      },
+      {
+        "feature_1": "first_serve_points_played",
+        "feature_2": "first_serve_points_won_cum",
+        "correlation": 0.9830120608872519
+      }
+    ],
+    "leakage_warnings": [
+      "Il target pattern_id_rule è pseudo-label rule-based: accuracy molto alta è attesa e non misura vera generalizzazione semantica."
+    ]
+  }
+}
