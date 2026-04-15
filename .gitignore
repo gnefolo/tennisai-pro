@@ -13,7 +13,7 @@ __pycache__/
 .pytest_cache/
 
 # Models and Large Files
-backend/*.pkl
+# rimossa per GitHub backend/*.pkl
 backend/*.csv
 
 # OS generated files

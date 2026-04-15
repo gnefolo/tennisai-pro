@@ -1,0 +1,78 @@
+{
+  "roc_auc_from_curve": 0.9595969397503697,
+  "test_rows": 766704,
+  "test_matches": 2102,
+  "top_10_features": [
+    {
+      "feature": "momentum_trend",
+      "importance": 0.2576514184474945
+    },
+    {
+      "feature": "last_n_points_won_5",
+      "importance": 0.1735004335641861
+    },
+    {
+      "feature": "is_player_on_serve",
+      "importance": 0.09648189693689346
+    },
+    {
+      "feature": "RallyCount",
+      "importance": 0.09229882806539536
+    },
+    {
+      "feature": "ServeNumber",
+      "importance": 0.05315940082073212
+    },
+    {
+      "feature": "is_game_point",
+      "importance": 0.0339990109205246
+    },
+    {
+      "feature": "rally_missing",
+      "importance": 0.02781112678349018
+    },
+    {
+      "feature": "pct_second_serve_points_won",
+      "importance": 0.02629314363002777
+    },
+    {
+      "feature": "serve_advantage",
+      "importance": 0.024889083579182625
+    },
+    {
+      "feature": "is_game_point_against",
+      "importance": 0.022806940600275993
+    }
+  ],
+  "calibration_curve": {
+    "prob_pred": [
+      0.0005431756146308633,
+      0.020479203454198402,
+      0.07820470799208203,
+      0.195980409979403,
+      0.4075150210825719,
+      0.6167722598444169,
+      0.8145265263194714,
+      0.928131772101783,
+      0.9828350252854354,
+      0.9997514784800339
+    ],
+    "prob_true": [
+      0.0002515145550379459,
+      0.009859743936177057,
+      0.04753433882669852,
+      0.147563936237171,
+      0.3964403172760689,
+      0.6256224717301043,
+      0.8623080533762489,
+      0.954852860537379,
+      0.9939439533571562,
+      1.0
+    ]
+  },
+  "files": {
+    "roc_curve": "/Users/giovannigraziano/Desktop/tennisai-pro/backend/paper_figure_roc_curve.png",
+    "calibration_curve": "/Users/giovannigraziano/Desktop/tennisai-pro/backend/paper_figure_calibration_curve.png",
+    "feature_importance": "/Users/giovannigraziano/Desktop/tennisai-pro/backend/paper_figure_feature_importance.png"
+  }
+}
