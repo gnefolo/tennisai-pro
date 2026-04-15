@@ -689,18 +689,26 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                     {currentStep > 0 && (
                         <button
                             onClick={() => {
-                                if (currentStep === 4 || currentStep === 3) {
+                                // Step 4→3: undo finish selection
+                                if (currentStep === 4) {
                                     onFinishTypeChange(null as unknown as FinishType);
                                     onFinishShotChange(null as unknown as FinishShot);
                                     onKeyEventChange("NONE");
-                                } else if (currentStep === 2) {
+                                }
+                                // Step 3→2: undo macro pattern selection
+                                else if (currentStep === 3) {
                                     onMacroPatternChange(null as unknown as FastMacroPattern);
                                     onReturnTypeChange(null as unknown as ReturnType);
                                     onRallyPhaseChange(null as unknown as RallyPhase);
-                                } else if (currentStep === 1) {
+                                }
+                                // Step 2→1: undo serve details
+                                else if (currentStep === 2) {
                                     onServeDirectionChange(null as unknown as ServeDirection);
                                     onServeQualityChange(null as unknown as ServeQuality);
                                     onServeNumberChange(1);
+                                }
+                                // Step 1→0: undo winner selection
+                                else if (currentStep === 1) {
                                     onPendingWinnerChange(null as unknown as "me");
                                 }
                             }}
