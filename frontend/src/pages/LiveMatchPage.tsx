@@ -1033,6 +1033,7 @@ export const LiveMatchPage: React.FC = () => {
             finishShot={finishShot}
             loading={loading}
             canUndo={recordedPoints.length > 0}
+            isPlayerOnServe={onServe === "me"}
             onPendingWinnerChange={setPendingWinner}
             onMacroPatternChange={setMacroPattern}
             onFinishTypeChange={setFinishType}

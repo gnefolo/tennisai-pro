@@ -37,6 +37,7 @@ interface FastTagPanelProps {
     onFinishShotChange: (value: FinishShot) => void;
     onUndo: () => void;
     onRegister: () => void;
+    isPlayerOnServe?: boolean;
 }
 
 const sectionCard =
@@ -49,28 +50,28 @@ const groupTitle =
     "text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-300";
 
 const basePill =
-    "px-3 py-2 rounded-xl border text-[11px] font-semibold transition-all";
+    "px-4 py-3 rounded-xl border text-[13px] font-semibold transition-all min-h-[48px] shadow-sm";
 
 function pillClass(active: boolean, tone: "emerald" | "rose" | "sky" | "amber" | "violet" | "cyan" | "slate") {
     if (!active) {
-        return `${basePill} border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500 hover:bg-slate-800/90`;
+        return `${basePill} border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500 hover:bg-slate-800/90 hover:scale-[1.02] active:scale-95`;
     }
 
     switch (tone) {
         case "emerald":
-            return `${basePill} border-emerald-500/50 bg-emerald-500/12 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.12)]`;
+            return `${basePill} border-emerald-500/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_12px_rgba(16,185,129,0.3)] scale-[1.02]`;
         case "rose":
-            return `${basePill} border-rose-500/50 bg-rose-500/12 text-rose-200 shadow-[0_0_0_1px_rgba(244,63,94,0.12)]`;
+            return `${basePill} border-rose-500/50 bg-rose-500/20 text-rose-100 shadow-[0_0_12px_rgba(244,63,94,0.3)] scale-[1.02]`;
         case "sky":
-            return `${basePill} border-sky-500/50 bg-sky-500/12 text-sky-200 shadow-[0_0_0_1px_rgba(14,165,233,0.12)]`;
+            return `${basePill} border-sky-500/50 bg-sky-500/20 text-sky-100 shadow-[0_0_12px_rgba(14,165,233,0.3)] scale-[1.02]`;
         case "amber":
-            return `${basePill} border-amber-500/50 bg-amber-500/12 text-amber-200 shadow-[0_0_0_1px_rgba(245,158,11,0.12)]`;
+            return `${basePill} border-amber-500/50 bg-amber-500/20 text-amber-100 shadow-[0_0_12px_rgba(245,158,11,0.3)] scale-[1.02]`;
         case "violet":
-            return `${basePill} border-violet-500/50 bg-violet-500/12 text-violet-200 shadow-[0_0_0_1px_rgba(139,92,246,0.12)]`;
+            return `${basePill} border-violet-500/50 bg-violet-500/20 text-violet-100 shadow-[0_0_12px_rgba(139,92,246,0.3)] scale-[1.02]`;
         case "cyan":
-            return `${basePill} border-cyan-500/50 bg-cyan-500/12 text-cyan-200 shadow-[0_0_0_1px_rgba(6,182,212,0.12)]`;
+            return `${basePill} border-cyan-500/50 bg-cyan-500/20 text-cyan-100 shadow-[0_0_12px_rgba(6,182,212,0.3)] scale-[1.02]`;
         default:
-            return `${basePill} border-slate-500/50 bg-slate-500/12 text-slate-100`;
+            return `${basePill} border-slate-500/50 bg-slate-500/20 text-slate-100 scale-[1.02]`;
     }
 }
 
@@ -139,7 +140,22 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
     onFinishShotChange,
     onUndo,
     onRegister,
+    isPlayerOnServe = true,
 }) => {
+    // Smart Focus Logic
+    const hasWinner = pendingWinner !== null;
+    const hasPattern = macroPattern !== null;
+    
+    // Auto-fill per ACE
+    const handleServeNumberClick = (n: 1 | 2 | "ACE") => {
+        onServeNumberChange(n);
+        if (n === "ACE") {
+            onPendingWinnerChange(isPlayerOnServe ? "me" : "opponent");
+            onMacroPatternChange("SERVE_DOMINANT");
+            onFinishTypeChange("WINNER");
+            onFinishShotChange("SERVE");
+        }
+    };
     const selectedSummary =
         pendingWinner && macroPattern && finishType
             ? `${pendingWinner === "me" ? "Punto mio" : "Punto avversario"} · ${macroLabel(
@@ -172,9 +188,9 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
             <div className="px-5 py-5 md:px-6 md:py-6 flex flex-col gap-6">
                 <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_1fr] gap-6">
                     <div className="flex flex-col gap-6">
-                        <div className="rounded-[20px] border border-slate-800/80 bg-slate-950/55 p-4">
-                            <div className={groupTitle}>1. Winner</div>
-                            <div className="mt-3 flex flex-wrap gap-2">
+                        <div className={`rounded-[20px] border border-slate-800/80 p-5 transition-all duration-300 ${!hasWinner ? 'bg-slate-800/40 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'bg-slate-950/55'}`}>
+                            <div className={groupTitle}>1. Chi ha vinto il punto?</div>
+                            <div className="mt-4 flex flex-wrap gap-3">
                                 <button
                                     onClick={() => onPendingWinnerChange("me")}
                                     className={pillClass(pendingWinner === "me", "emerald")}
@@ -190,9 +206,9 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             </div>
                         </div>
 
-                        <div className="rounded-[20px] border border-slate-800/80 bg-slate-950/55 p-4">
-                            <div className={groupTitle}>2. Pattern</div>
-                            <div className="mt-3 flex flex-wrap gap-2">
+                        <div className={`rounded-[20px] border border-slate-800/80 p-5 transition-all duration-300 ${!hasWinner ? 'opacity-40 grayscale pointer-events-none' : hasWinner && !hasPattern ? 'bg-slate-800/40 shadow-[0_0_20px_rgba(14,165,233,0.1)]' : 'bg-slate-950/55'}`}>
+                            <div className={groupTitle}>2. Schema prevalente</div>
+                            <div className="mt-4 flex flex-wrap gap-2.5">
                                 {(
                                     [
                                         "SERVE_DOMINANT",
@@ -217,9 +233,9 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             </div>
                         </div>
 
-                        <div className="rounded-[20px] border border-slate-800/80 bg-slate-950/55 p-4">
-                            <div className={groupTitle}>3. Finish</div>
-                            <div className="mt-3 flex flex-wrap gap-2">
+                        <div className={`rounded-[20px] border border-slate-800/80 p-5 transition-all duration-300 ${!hasPattern ? 'opacity-40 grayscale pointer-events-none' : 'bg-slate-800/40 shadow-[0_0_20px_rgba(245,158,11,0.1)]'}`}>
+                            <div className={groupTitle}>3. Chiusura del punto</div>
+                            <div className="mt-4 flex flex-wrap gap-2.5">
                                 {(["WINNER", "FORCED_ERROR", "UNFORCED_ERROR"] as const).map((value) => (
                                     <button
                                         key={value}
@@ -251,11 +267,11 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-3 sticky bottom-4 z-20">
                             <button
                                 onClick={onRegister}
                                 disabled={loading}
-                                className="rounded-2xl bg-emerald-600 px-4 py-3 text-[12px] font-bold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                                className="rounded-[20px] bg-emerald-600 px-6 py-5 min-h-[64px] shadow-[0_10px_30px_rgba(16,185,129,0.3)] text-[14px] font-bold text-white transition hover:bg-emerald-500 hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0"
                             >
                                 {loading ? "Analisi tattica..." : "Registra punto e analizza il prossimo"}
                             </button>
@@ -276,25 +292,25 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                         <div className="flex flex-col gap-5">
                             <div>
                                 <div className={groupTitle}>Servizio</div>
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2.5">
                                     {[1, 2].map((n) => (
                                         <button
                                             key={n}
-                                            onClick={() => onServeNumberChange(n as 1 | 2)}
+                                            onClick={() => handleServeNumberClick(n as 1 | 2)}
                                             className={pillClass(serveNumber === n, "violet")}
                                         >
                                             {n}ª
                                         </button>
                                     ))}
                                     <button
-                                        onClick={() => onServeNumberChange("ACE")}
+                                        onClick={() => handleServeNumberClick("ACE")}
                                         className={pillClass(serveNumber === "ACE", "emerald")}
                                     >
                                         ACE
                                     </button>
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2.5">
                                     {(["T", "BODY", "WIDE"] as const).map((v) => (
                                         <button
                                             key={v}
@@ -322,7 +338,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             <div className="border-t border-slate-800/80 pt-5">
                                 <div className={groupTitle}>Risposta e sviluppo</div>
 
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2.5">
                                     {(
                                         ["DEEP", "SHORT", "ANGLED", "CENTRAL", "BLOCKED", "AGGRESSIVE"] as const
                                     ).map((v) => (
@@ -346,7 +362,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                                     ))}
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2.5">
                                     {(
                                         ["NEUTRAL", "ATTACK_ME", "ATTACK_OPP", "DEFENSE_ME", "DEFENSE_OPP"] as const
                                     ).map((v) => (
@@ -368,7 +384,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                                     ))}
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2.5">
                                     {(
                                         [
                                             "NONE",
@@ -405,7 +421,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                                     ))}
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap gap-2">
+                                <div className="mt-4 flex flex-wrap gap-2.5">
                                     {(
                                         ["SERVE", "FOREHAND", "BACKHAND", "VOLLEY", "SMASH", "PASSING", "OTHER"] as const
                                     ).map((v) => (
