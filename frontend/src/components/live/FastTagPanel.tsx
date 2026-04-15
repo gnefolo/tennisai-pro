@@ -50,11 +50,13 @@ const basePill =
 
 type Tone = "emerald" | "rose" | "sky" | "amber" | "violet" | "cyan" | "slate";
 
-function pillClass(active: boolean, tone: Tone) {
+function pillClass(active: boolean, tone: Tone, disabled = false) {
+    if (disabled) {
+        return `${basePill} border-slate-800 bg-slate-950/60 text-slate-700 cursor-not-allowed opacity-40`;
+    }
     if (!active) {
         return `${basePill} border-slate-700 bg-slate-900/80 text-slate-300 hover:border-slate-500 hover:bg-slate-800/90 hover:scale-[1.02] active:scale-95`;
     }
-
     const toneMap: Record<Tone, string> = {
         emerald: `${basePill} border-emerald-500/50 bg-emerald-500/20 text-emerald-100 shadow-[0_0_12px_rgba(16,185,129,0.3)] scale-[1.02]`,
         rose: `${basePill} border-rose-500/50 bg-rose-500/20 text-rose-100 shadow-[0_0_12px_rgba(244,63,94,0.3)] scale-[1.02]`,
@@ -65,6 +67,19 @@ function pillClass(active: boolean, tone: Tone) {
         slate: `${basePill} border-slate-500/50 bg-slate-500/20 text-slate-100 scale-[1.02]`,
     };
     return toneMap[tone];
+}
+
+function chipClass(tone: Tone) {
+    const map: Record<Tone, string> = {
+        emerald: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200",
+        rose: "border-rose-500/40 bg-rose-500/15 text-rose-200",
+        sky: "border-sky-500/40 bg-sky-500/15 text-sky-200",
+        amber: "border-amber-500/40 bg-amber-500/15 text-amber-200",
+        violet: "border-violet-500/40 bg-violet-500/15 text-violet-200",
+        cyan: "border-cyan-500/40 bg-cyan-500/15 text-cyan-200",
+        slate: "border-slate-500/40 bg-slate-500/15 text-slate-200",
+    };
+    return `px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${map[tone]}`;
 }
 
 // ── Label helpers ────────────────────────────────────────────────────
@@ -121,14 +136,103 @@ function finishShotLabel(v: FinishShot) {
     return m[v] || v;
 }
 
+// ── Logical rules ────────────────────────────────────────────────────
+//
+// These functions produce the set of available options for each tag
+// based on WHO is serving and WHO won the point, following tennis logic.
+//
+
+/** Which macro patterns are valid given the serve/return & winner context */
+function getAvailablePatterns(
+    isPlayerOnServe: boolean,
+    pendingWinner: "me" | "opponent" | null
+): Set<FastMacroPattern> {
+    const all: FastMacroPattern[] = [
+        "SERVE_DOMINANT", "AGGRESSIVE_RETURN", "SHORT_RALLY", "MEDIUM_RALLY",
+        "LONG_RALLY", "SHORT_BALL_ATTACK", "NET_PLAY", "DEFENSE_RECOVERY", "PASSING_LOB",
+    ];
+    if (!pendingWinner) return new Set(all);
+
+    const serverWon =
+        (isPlayerOnServe && pendingWinner === "me") ||
+        (!isPlayerOnServe && pendingWinner === "opponent");
+
+    const returnerWon =
+        (isPlayerOnServe && pendingWinner === "opponent") ||
+        (!isPlayerOnServe && pendingWinner === "me");
+
+    const available = new Set<FastMacroPattern>([
+        "SHORT_RALLY", "MEDIUM_RALLY", "LONG_RALLY",
+        "SHORT_BALL_ATTACK", "NET_PLAY", "PASSING_LOB",
+    ]);
+
+    // SERVE_DOMINANT only if the server won
+    if (serverWon) available.add("SERVE_DOMINANT");
+    // AGGRESSIVE_RETURN only if the returner won
+    if (returnerWon) available.add("AGGRESSIVE_RETURN");
+    // DEFENSE_RECOVERY makes sense both ways
+    available.add("DEFENSE_RECOVERY");
+
+    return available;
+}
+
+/** Which finish shots make sense given the selected macro pattern */
+function getAvailableFinishShots(
+    macroPattern: FastMacroPattern | null
+): Set<FinishShot> {
+    const all: FinishShot[] = ["SERVE", "FOREHAND", "BACKHAND", "VOLLEY", "SMASH", "PASSING", "OTHER"];
+
+    if (!macroPattern) return new Set(all);
+
+    switch (macroPattern) {
+        case "SERVE_DOMINANT":
+            // Serve-focused: Serve is the primary shot; groundstrokes possible on +1
+            return new Set<FinishShot>(["SERVE", "FOREHAND", "BACKHAND"]);
+        case "NET_PLAY":
+            // Net patterns: volley and smash dominate
+            return new Set<FinishShot>(["VOLLEY", "SMASH", "FOREHAND", "BACKHAND", "OTHER"]);
+        case "PASSING_LOB":
+            return new Set<FinishShot>(["PASSING", "FOREHAND", "BACKHAND", "OTHER"]);
+        default:
+            // Rally patterns: groundstrokes dominate, no "SERVE"
+            return new Set<FinishShot>(["FOREHAND", "BACKHAND", "VOLLEY", "SMASH", "PASSING", "OTHER"]);
+    }
+}
+
+/** Whether return type tag is relevant */
+function isReturnTypeRelevant(macroPattern: FastMacroPattern | null): boolean {
+    // Return type is irrelevant for serve-dominant (the return barely happened)
+    if (macroPattern === "SERVE_DOMINANT") return false;
+    return true;
+}
+
+/** Which key events make sense for the selected macro pattern */
+function getAvailableKeyEvents(macroPattern: FastMacroPattern | null): Set<KeyEvent> {
+    const all: KeyEvent[] = ["NONE", "DROP_SHOT", "NET_APPROACH", "LOB", "PASSING", "LINE_CHANGE", "INSIDE_OUT", "INSIDE_IN"];
+    if (!macroPattern) return new Set(all);
+
+    switch (macroPattern) {
+        case "SERVE_DOMINANT":
+            return new Set<KeyEvent>(["NONE"]);
+        case "NET_PLAY":
+            return new Set<KeyEvent>(["NET_APPROACH", "DROP_SHOT", "NONE"]);
+        case "PASSING_LOB":
+            return new Set<KeyEvent>(["PASSING", "LOB", "LINE_CHANGE", "NONE"]);
+        case "DEFENSE_RECOVERY":
+            return new Set<KeyEvent>(["NONE", "LOB", "PASSING", "LINE_CHANGE"]);
+        default:
+            return new Set(all);
+    }
+}
+
 // ── Wizard Steps ─────────────────────────────────────────────────────
 
 const STEP_LABELS = [
-    "Chi ha vinto?",
-    "Servizio",
-    "Schema e sviluppo",
-    "Chiusura",
-    "Conferma",
+    "Winner",
+    "Serve",
+    "Pattern",
+    "Finish",
+    "Review",
 ];
 
 // ── Component ────────────────────────────────────────────────────────
@@ -169,6 +273,24 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
         return 4;
     }, [pendingWinner, serveDirection, serveQuality, serveNumber, macroPattern, finishType]);
 
+    // ── Contextual rule sets ─────────────────────────────────────────
+    const availablePatterns = useMemo(
+        () => getAvailablePatterns(isPlayerOnServe, pendingWinner),
+        [isPlayerOnServe, pendingWinner]
+    );
+    const availableFinishShots = useMemo(
+        () => getAvailableFinishShots(macroPattern),
+        [macroPattern]
+    );
+    const showReturnType = useMemo(
+        () => isReturnTypeRelevant(macroPattern),
+        [macroPattern]
+    );
+    const availableKeyEvents = useMemo(
+        () => getAvailableKeyEvents(macroPattern),
+        [macroPattern]
+    );
+
     // ── ACE auto-fill ────────────────────────────────────────────────
     const handleServeNumberClick = (n: 1 | 2 | "ACE") => {
         onServeNumberChange(n);
@@ -180,19 +302,15 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
         }
     };
 
-    // ── Step navigation ──────────────────────────────────────────────
-    const goToStep = (step: number) => {
-        // We allow going back by clearing forward state
-        if (step <= 0) {
-            // nothing — user picks winner to advance
-        }
-    };
-
     // ── Summary chips ────────────────────────────────────────────────
     const summaryChips: { label: string; tone: Tone }[] = [];
-    if (pendingWinner) summaryChips.push({ label: pendingWinner === "me" ? "✓ Io" : "✓ Avversario", tone: pendingWinner === "me" ? "emerald" : "rose" });
-    if (serveNumber === "ACE") summaryChips.push({ label: "ACE", tone: "emerald" });
-    else {
+    if (pendingWinner) summaryChips.push({
+        label: pendingWinner === "me" ? "Player" : "Opponent",
+        tone: pendingWinner === "me" ? "emerald" : "rose",
+    });
+    if (serveNumber === "ACE") {
+        summaryChips.push({ label: "ACE", tone: "emerald" });
+    } else {
         if (serveDirection) summaryChips.push({ label: serveDirectionLabel(serveDirection), tone: "violet" });
         if (serveQuality) summaryChips.push({ label: serveQualityLabel(serveQuality), tone: "cyan" });
     }
@@ -204,6 +322,10 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
     if (finishShot) summaryChips.push({ label: finishShotLabel(finishShot), tone: "cyan" });
 
     const canSubmit = pendingWinner && macroPattern && finishType;
+
+    // ── Helper for sub-label text ────────────────────────────────────
+    const subLabel = "text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3";
+    const optionalTag = <span className="ml-1.5 text-slate-600 normal-case tracking-normal">(opzionale)</span>;
 
     return (
         <div className={`${sectionCard} overflow-hidden`}>
@@ -245,18 +367,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
             {summaryChips.length > 0 && (
                 <div className="px-5 py-3 md:px-6 border-b border-slate-800/60 flex flex-wrap gap-1.5">
                     {summaryChips.map((chip, i) => (
-                        <span
-                            key={i}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
-                                chip.tone === "emerald" ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200" :
-                                chip.tone === "rose" ? "border-rose-500/40 bg-rose-500/15 text-rose-200" :
-                                chip.tone === "sky" ? "border-sky-500/40 bg-sky-500/15 text-sky-200" :
-                                chip.tone === "amber" ? "border-amber-500/40 bg-amber-500/15 text-amber-200" :
-                                chip.tone === "violet" ? "border-violet-500/40 bg-violet-500/15 text-violet-200" :
-                                chip.tone === "cyan" ? "border-cyan-500/40 bg-cyan-500/15 text-cyan-200" :
-                                "border-slate-500/40 bg-slate-500/15 text-slate-200"
-                            }`}
-                        >
+                        <span key={i} className={chipClass(chip.tone)}>
                             {chip.label}
                         </span>
                     ))}
@@ -274,17 +385,15 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => onPendingWinnerChange("me")}
-                                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/10 p-6 min-h-[80px] text-emerald-100 font-bold text-lg transition hover:bg-emerald-500/20 hover:border-emerald-400/50 hover:scale-[1.02] active:scale-95"
+                                className="flex items-center justify-center rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/10 p-6 min-h-[72px] text-emerald-100 font-bold text-lg tracking-wide transition hover:bg-emerald-500/20 hover:border-emerald-400/50 hover:scale-[1.02] active:scale-95"
                             >
-                                <span className="text-3xl">🎾</span>
-                                IO
+                                PLAYER
                             </button>
                             <button
                                 onClick={() => onPendingWinnerChange("opponent")}
-                                className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-rose-500/30 bg-rose-500/10 p-6 min-h-[80px] text-rose-100 font-bold text-lg transition hover:bg-rose-500/20 hover:border-rose-400/50 hover:scale-[1.02] active:scale-95"
+                                className="flex items-center justify-center rounded-2xl border-2 border-rose-500/30 bg-rose-500/10 p-6 min-h-[72px] text-rose-100 font-bold text-lg tracking-wide transition hover:bg-rose-500/20 hover:border-rose-400/50 hover:scale-[1.02] active:scale-95"
                             >
-                                <span className="text-3xl">🏓</span>
-                                AVVERSARIO
+                                OPPONENT
                             </button>
                         </div>
                     </div>
@@ -294,14 +403,12 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                 {currentStep === 1 && (
                     <div className="animate-[fadeIn_0.3s_ease-out] flex flex-col gap-5">
                         <div className="text-[13px] font-bold text-slate-100 mb-1">
-                            {isPlayerOnServe ? "Il tuo servizio" : "Servizio dell'avversario"}
+                            {isPlayerOnServe ? "Servizio del Player" : "Servizio dell'Opponent"}
                         </div>
 
                         {/* Serve number / ACE */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
-                                Battuta
-                            </div>
+                            <div className={subLabel}>Battuta</div>
                             <div className="flex flex-wrap gap-2.5">
                                 {([1, 2] as const).map((n) => (
                                     <button
@@ -316,16 +423,14 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                                     onClick={() => handleServeNumberClick("ACE")}
                                     className={pillClass(serveNumber === "ACE", "emerald")}
                                 >
-                                    🔥 ACE
+                                    ACE
                                 </button>
                             </div>
                         </div>
 
                         {/* Direction */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
-                                Direzione
-                            </div>
+                            <div className={subLabel}>Direzione</div>
                             <div className="flex flex-wrap gap-2.5">
                                 {(["T", "BODY", "WIDE"] as const).map((v) => (
                                     <button
@@ -341,9 +446,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
 
                         {/* Quality */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
-                                Qualità
-                            </div>
+                            <div className={subLabel}>Qualità</div>
                             <div className="flex flex-wrap gap-2.5">
                                 {(["SAFE", "AGGRESSIVE", "WEAK"] as const).map((v) => (
                                     <button
@@ -357,7 +460,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             </div>
                         </div>
 
-                        {/* Skip to next */}
+                        {/* Skip */}
                         <button
                             onClick={() => {
                                 if (!serveDirection) onServeDirectionChange("T");
@@ -377,11 +480,9 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             Com'è stato il punto?
                         </div>
 
-                        {/* Macro pattern */}
+                        {/* Macro pattern — only available options shown enabled */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
-                                Schema prevalente
-                            </div>
+                            <div className={subLabel}>Schema prevalente</div>
                             <div className="flex flex-wrap gap-2.5">
                                 {([
                                     "SERVE_DOMINANT",
@@ -393,42 +494,48 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                                     "NET_PLAY",
                                     "DEFENSE_RECOVERY",
                                     "PASSING_LOB",
-                                ] as const).map((value) => (
-                                    <button
-                                        key={value}
-                                        onClick={() => onMacroPatternChange(value)}
-                                        className={pillClass(macroPattern === value, "sky")}
-                                    >
-                                        {macroLabel(value)}
-                                    </button>
-                                ))}
+                                ] as const).map((value) => {
+                                    const allowed = availablePatterns.has(value);
+                                    return (
+                                        <button
+                                            key={value}
+                                            onClick={() => allowed && onMacroPatternChange(value)}
+                                            className={pillClass(macroPattern === value, "sky", !allowed)}
+                                            disabled={!allowed}
+                                        >
+                                            {macroLabel(value)}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        {/* Return type */}
-                        <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
-                                Tipo di risposta
-                                <span className="ml-1.5 text-slate-600 normal-case tracking-normal">(opzionale)</span>
+                        {/* Return type — hidden when not relevant */}
+                        {showReturnType && (
+                            <div>
+                                <div className={subLabel}>
+                                    Tipo di risposta
+                                    {optionalTag}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {(["DEEP", "SHORT", "ANGLED", "CENTRAL", "BLOCKED", "AGGRESSIVE"] as const).map((v) => (
+                                        <button
+                                            key={v}
+                                            onClick={() => onReturnTypeChange(v)}
+                                            className={pillClass(returnType === v, "emerald")}
+                                        >
+                                            {returnTypeLabel(v)}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                {(["DEEP", "SHORT", "ANGLED", "CENTRAL", "BLOCKED", "AGGRESSIVE"] as const).map((v) => (
-                                    <button
-                                        key={v}
-                                        onClick={() => onReturnTypeChange(v)}
-                                        className={pillClass(returnType === v, "emerald")}
-                                    >
-                                        {returnTypeLabel(v)}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        )}
 
                         {/* Rally phase */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
+                            <div className={subLabel}>
                                 Fase del rally
-                                <span className="ml-1.5 text-slate-600 normal-case tracking-normal">(opzionale)</span>
+                                {optionalTag}
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {(["NEUTRAL", "ATTACK_ME", "ATTACK_OPP", "DEFENSE_ME", "DEFENSE_OPP"] as const).map((v) => (
@@ -454,9 +561,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
 
                         {/* Finish type */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
-                                Esito
-                            </div>
+                            <div className={subLabel}>Esito</div>
                             <div className="flex flex-wrap gap-2.5">
                                 {(["WINNER", "FORCED_ERROR", "UNFORCED_ERROR"] as const).map((value) => (
                                     <button
@@ -470,41 +575,49 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             </div>
                         </div>
 
-                        {/* Finish shot */}
+                        {/* Finish shot — filtered by pattern context */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
+                            <div className={subLabel}>
                                 Colpo finale
-                                <span className="ml-1.5 text-slate-600 normal-case tracking-normal">(opzionale)</span>
+                                {optionalTag}
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {(["SERVE", "FOREHAND", "BACKHAND", "VOLLEY", "SMASH", "PASSING", "OTHER"] as const).map((v) => (
-                                    <button
-                                        key={v}
-                                        onClick={() => onFinishShotChange(v)}
-                                        className={pillClass(finishShot === v, "cyan")}
-                                    >
-                                        {finishShotLabel(v)}
-                                    </button>
-                                ))}
+                                {(["SERVE", "FOREHAND", "BACKHAND", "VOLLEY", "SMASH", "PASSING", "OTHER"] as const).map((v) => {
+                                    const allowed = availableFinishShots.has(v);
+                                    return (
+                                        <button
+                                            key={v}
+                                            onClick={() => allowed && onFinishShotChange(v)}
+                                            className={pillClass(finishShot === v, "cyan", !allowed)}
+                                            disabled={!allowed}
+                                        >
+                                            {finishShotLabel(v)}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        {/* Key event */}
+                        {/* Key event — filtered by pattern context */}
                         <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 mb-3">
+                            <div className={subLabel}>
                                 Evento chiave
-                                <span className="ml-1.5 text-slate-600 normal-case tracking-normal">(opzionale)</span>
+                                {optionalTag}
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {(["NONE", "DROP_SHOT", "NET_APPROACH", "LOB", "PASSING", "LINE_CHANGE", "INSIDE_OUT", "INSIDE_IN"] as const).map((v) => (
-                                    <button
-                                        key={v}
-                                        onClick={() => onKeyEventChange(v)}
-                                        className={pillClass(keyEvent === v, "amber")}
-                                    >
-                                        {keyEventLabel(v)}
-                                    </button>
-                                ))}
+                                {(["NONE", "DROP_SHOT", "NET_APPROACH", "LOB", "PASSING", "LINE_CHANGE", "INSIDE_OUT", "INSIDE_IN"] as const).map((v) => {
+                                    const allowed = availableKeyEvents.has(v);
+                                    return (
+                                        <button
+                                            key={v}
+                                            onClick={() => allowed && onKeyEventChange(v)}
+                                            className={pillClass(keyEvent === v, "amber", !allowed)}
+                                            disabled={!allowed}
+                                        >
+                                            {keyEventLabel(v)}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -521,7 +634,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                             <div className="flex items-center gap-2">
                                 <span className={`w-2.5 h-2.5 rounded-full ${pendingWinner === "me" ? "bg-emerald-400" : "bg-rose-400"}`} />
                                 <span className="text-[13px] font-semibold text-slate-100">
-                                    {pendingWinner === "me" ? "Punto vinto" : "Punto perso"}
+                                    {pendingWinner === "me" ? "Punto Player" : "Punto Opponent"}
                                 </span>
                             </div>
 
@@ -564,7 +677,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                         disabled={loading}
                         className="rounded-[18px] bg-emerald-600 px-6 py-4 min-h-[56px] shadow-[0_10px_30px_rgba(16,185,129,0.25)] text-[14px] font-bold text-white transition hover:bg-emerald-500 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0"
                     >
-                        {loading ? "⏳ Analisi tattica..." : "✅ Registra punto e analizza"}
+                        {loading ? "Analisi tattica..." : "Registra punto e analizza"}
                     </button>
                 ) : (
                     <div className="rounded-[18px] border border-slate-800 bg-slate-900/60 px-6 py-4 min-h-[56px] text-center text-[13px] text-slate-500 font-medium">
@@ -576,7 +689,6 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
                     {currentStep > 0 && (
                         <button
                             onClick={() => {
-                                // Go back: clear current step's data
                                 if (currentStep === 4 || currentStep === 3) {
                                     onFinishTypeChange(null as unknown as FinishType);
                                     onFinishShotChange(null as unknown as FinishShot);
