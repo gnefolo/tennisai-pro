@@ -56,7 +56,7 @@ const LIVE_MATCH_RECORDS_KEY = "tennisai_live_match_records";
 
 async function postJSON<T>(url: string, body: unknown): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
 
   try {
     const res = await fetch(url, {
@@ -641,7 +641,7 @@ export const LiveMatchPage: React.FC = () => {
       console.error("Errore handleRegisterAndAnalyze:", err);
       if (err instanceof Error && err.name === "AbortError") {
         setError(
-          "Timeout del motore tattico live: il backend non ha risposto entro 10 secondi."
+          "Timeout del motore tattico: il backend (su Render) non ha risposto entro 90 secondi. Il primo avvio può richiedere fino a un minuto, ritenta subito tra poco!"
         );
       } else {
         setError("Errore nel motore tattico live.");
