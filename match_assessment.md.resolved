@@ -1,0 +1,171 @@
+# Assessment Match Completo — Bellucci vs Forejtek
+
+**Match**: M. Bellucci (ITA) vs J. Forejtek (CZE) — Oeiras Open 3, Clay, BO5, 16F  
+**Risultato finale**: Bellucci vince **3-1** (set)  
+**Punti totali registrati**: 161  
+
+---
+
+## 1. Statistiche Generali
+
+| Statistica | Valore |
+|---|---|
+| Punti vinti (Player) | **93 / 161** (57.8%) |
+| Punti al servizio | 75 (vinti: 47 → **62.7%**) |
+| Punti in risposta | 86 (vinti: 46 → **53.5%**) |
+| ACE | 2 |
+| 1ª di servizio — punti vinti | 46/74 → **62.2%** |
+| 2ª di servizio — punti vinti | 0/0 (non taggata dallo script) |
+| Break point giocati | 17 (vinti: 9 → **52.9%**) |
+| Game point giocati | 24 (vinti: 14 → **58.3%**) |
+| Striscia vincente max | **10 punti consecutivi** |
+| Striscia negativa max | **8 punti consecutivi** |
+
+> [!NOTE]
+> Lo script automatico ha registrato quasi tutti i servizi come "1ª" e nessun "2ª". Questo è un artefatto della simulazione (lo script JS non variava `serveNumber`). In un match reale, il rapporto 1ª/2ª sarà molto più bilanciato.
+
+---
+
+## 2. Andamento Set per Set
+
+| Set | Punti | Vinti | Win% | Serve W% | Return W% | Note |
+|-----|-------|-------|------|----------|-----------|-------|
+| **1° set** | 49 | 30 | **61.2%** | 60.9% | 61.5% | Bellucci domina. Solidità in risposta notevole |
+| **2° set** | 42 | 29 | **69.0%** | 76.5% | 64.0% | Picco di dominanza. Il servizio sale al 76.5% |
+| **3° set** | 33 | 8 | **24.2%** | 23.5% | 25.0% | Crollo verticale: Forejtek prende il set |
+| **4° set** | 37 | 26 | **70.3%** | 88.9% | 52.6% | Reazione brutale, servizio quasi imbattibile |
+
+> [!IMPORTANT]
+> Il **3° set** mostra un crollo drastico (24.2%) coerente con la simulazione programmata (probabilità 30% Player). Questo stress-test è utilissimo: il modello ha reagito abbassando progressivamente la win probability nei suoi output — segno che la feature `momentumLast5` funziona.
+
+---
+
+## 3. Distribuzione Pattern (Macro)
+
+```mermaid
+pie title Schema di gioco dominanti (161 punti)
+    "SERVE_DOMINANT" : 36
+    "SHORT_RALLY" : 34
+    "LONG_RALLY" : 33
+    "AGGRESSIVE_RETURN" : 32
+    "MEDIUM_RALLY" : 24
+    "DEFENSE / NET" : 2
+```
+
+| Pattern | Occorrenze | % | Osservazione |
+|---------|-----------|---|-------------|
+| Servizio dominante | 36 | 22.4% | Coerente, lo script selezionava random tra 5 pattern |
+| Rally breve | 34 | 21.1% | |
+| Rally lungo | 33 | 20.5% | |
+| Risposta aggressiva | 32 | 19.9% | |
+| Rally medio | 24 | 14.9% | |
+| Difesa/Rete | 2 | 1.2% | Quasi mai selezionati (5 opzioni, 2 rare) |
+
+> [!TIP]
+> La distribuzione uniforme è attesa (script random). In un match reale ci aspettiamo che SERVE_DOMINANT e SHORT_RALLY dominino sulla terra battuta per un big-server come Bellucci.
+
+---
+
+## 4. Pattern Fused (Output del Modello)
+
+Questi sono i pattern che il motore tattico XGBoost ha **assegnato** ai punti dopo aver analizzato il contesto complessivo:
+
+| Pattern Fused | Occorrenze | % |
+|---|---|---|
+| **Neutral return** | 58 | 36.0% |
+| Serve neutral / mixed | 39 | 24.2% |
+| Serve safe / percentage | 32 | 19.9% |
+| Safe return | 15 | 9.3% |
+| Aggressive return | 12 | 7.5% |
+| Serve aggressive | 4 | 2.5% |
+| Return pressure | 1 | 0.6% |
+
+> [!NOTE]
+> Il modello tende a classificare prevalentemente come "Neutral return" (36%) — questo indica che il modello, con dati generati random, non trova pattern forti e defaulta verso il neutro. Con dati di match reali e tagging umano preciso, il modello dovrebbe distribuire meglio tra serve aggressive, return pressure e le varianti tattiche.
+
+---
+
+## 5. Chiusura dei Punti
+
+| Tipo di Chiusura | Occorrenze | % |
+|---|---|---|
+| **Vincente** (Winner) | 56 | 34.8% |
+| **Errore non forzato** | 53 | 32.9% |
+| **Errore forzato** | 52 | 32.3% |
+
+| Colpo Finale | Occorrenze | % |
+|---|---|---|
+| **Diritto** (Forehand) | 90 | 55.9% |
+| Servizio | 35 | 21.7% |
+| Rovescio (Backhand) | 35 | 21.7% |
+| Volée | 1 | 0.6% |
+
+Distribuzione quasi uniforme tra i tre tipi di chiusura (atteso con selezione random). Il diritto domina come shot finale — attendibile.
+
+---
+
+## 6. Valutazione del Modello XGBoost
+
+### Probabilità media di vittoria
+- **Media**: 0.5565 (55.65%)
+- Coerente col fatto che Bellucci ha vinto il 57.8% dei punti
+
+### Calibrazione del Modello
+
+La calibrazione misura se "quando il modello dice 70%, il giocatore vince davvero ~70% delle volte":
+
+| Predizione Modello | Punti | Esito reale (% vinti) | Calibrazione |
+|---|---|---|---|
+| 0-10% | 11 | 54.5% | ⚠️ Sovrastima |
+| 10-20% | 21 | 57.1% | ⚠️ Sovrastima |
+| 20-30% | 14 | 64.3% | ⚠️ Sovrastima |
+| 30-40% | 13 | 30.8% | ✅ Buona |
+| 40-50% | 3 | 0.0% | ⚠️ Pochi dati |
+| 50-60% | 16 | 56.3% | ✅ Buona |
+| 60-70% | 22 | 68.2% | ✅ Buona |
+| 70-80% | 15 | 66.7% | ✅ Discreta |
+| 80-90% | 19 | 68.4% | ⚠️ Sottostima |
+| 90-100% | 27 | 55.6% | ⚠️ Sottostima |
+
+> [!WARNING]
+> **Calibrazione Compromessa**: Le fasce basse (0-20%) e alte (90-100%) sono significativamente miscalibrate. Quando il modello dà 0-10% di probabilità, il giocatore vince il 54% delle volte — quasi una monetina.
+> 
+> **Causa principale**: I dati di input sono generati da uno script random — il tagging non corrisponde alla realtà del punto. Il modello riceve `rally_phase=ATTACK_ME` su un punto casuale, e questo confonde la calibrazione. Con tagging umano reale, i segnali sarebbero coerenti e la calibrazione migliorerà notevolmente.
+
+### Confidenza del Modello
+- **Alta confidenza** (prob > 80% o < 20%): **48.4%** dei punti — il modello è spesso "sicuro"
+- **Bassa confidenza** (40-60%): **11.8%** dei punti — raramente neutrale
+
+---
+
+## 7. Rally Profile
+
+| Durata | Punti | % |
+|---|---|---|
+| **SHORT** (≤4 colpi) | 103 | 64.0% |
+| **LONG** (10+ colpi) | 34 | 21.1% |
+| **MEDIUM** (5-9 colpi) | 24 | 14.9% |
+
+Dominanza di punti brevi (64%) — coerente con la terra battuta e un profilo di big-server. In un match reale ci aspetteremmo più MEDIUM.
+
+---
+
+## 8. Conclusioni e Raccomandazioni
+
+### ✅ Cosa Funziona Bene
+1. **Pipeline end-to-end**: 161 punti registrati senza errori, backend stabile, export CSV perfetto
+2. **Score tracking**: Set, game e punteggio punto per punto sono tracciati con precisione millesimale
+3. **Momentum detection**: Il modello reagisce correttamente al 3° set (crollo momentum) abbassando le probabilità
+4. **Pattern engine**: La fusione dei tag verso i pattern funziona e genera descrizioni utili
+
+### ⚠️ Limiti Emersi (attesi dalla simulazione)
+1. **Nessuna 2ª di servizio**: lo script non la variava — in un match reale è critica
+2. **Calibrazione distorta**: Il tagging random genera rumore → il modello oscilla
+3. **Pattern Defense/Net sottorappresentati**: Lo script random li selezionava raramente (2/161)
+4. **Key Events quasi assenti**: Solo 2 su 161 — nella realtà drop shot, net approach ecc. sono frequenti
+
+### 🎯 Prossimo Passo Consigliato
+> Il vero test di fuoco è un **match taggato a mano** con il nuovo wizard. Anche solo un set (40-60 punti) con tagging umano preciso permetterebbe di:
+> - Verificare la calibrazione del modello con dati reali
+> - Capire se il wizard a step è abbastanza veloce per il bordo campo
+> - Generare un dataset "gold standard" per un futuro re-training

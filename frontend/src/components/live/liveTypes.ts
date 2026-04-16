@@ -194,6 +194,8 @@ export interface PersistedLiveState {
     pointScoreMe: PointScore;
     pointScoreOpp: PointScore;
     recordedPoints: RecordedPoint[];
+    isMatchOver?: boolean;
+    matchWinner?: "me" | "opponent" | null;
 }
 
 export interface PersistedMatchRecord {
@@ -209,6 +211,8 @@ export interface PersistedMatchRecord {
     pointScoreMe: PointScore;
     pointScoreOpp: PointScore;
     recordedPoints: RecordedPoint[];
+    isMatchOver?: boolean;
+    matchWinner?: "me" | "opponent" | null;
 }
 
 export type PersistedMatchRecordMap = Record<string, PersistedMatchRecord>;

@@ -155,6 +155,8 @@ export const LiveMatchPage: React.FC = () => {
   const [taggedPrediction, setTaggedPrediction] =
     useState<LiveTaggedPointResponse | null>(null);
   const [recordedPoints, setRecordedPoints] = useState<RecordedPoint[]>([]);
+  const [isMatchOver, setIsMatchOver] = useState<boolean>(false);
+  const [matchWinner, setMatchWinner] = useState<"me" | "opponent" | null>(null);
 
   // Derived score states
   const totalGamesInSet = gamesMe + gamesOpp;
@@ -249,6 +251,8 @@ export const LiveMatchPage: React.FC = () => {
         setPointScoreOpp(parsed.pointScoreOpp);
 
         setRecordedPoints(parsed.recordedPoints || []);
+        setIsMatchOver(parsed.isMatchOver || false);
+        setMatchWinner(parsed.matchWinner || null);
 
         if (parsed.currentSessionId) {
           setIsSettingUp(false);
@@ -355,6 +359,8 @@ export const LiveMatchPage: React.FC = () => {
       pointScoreMe,
       pointScoreOpp,
       recordedPoints,
+      isMatchOver,
+      matchWinner,
     });
 
     if (currentSessionId) {
@@ -372,6 +378,8 @@ export const LiveMatchPage: React.FC = () => {
         pointScoreMe,
         pointScoreOpp,
         recordedPoints,
+        isMatchOver,
+        matchWinner,
       };
       persistMatchRecordMap(map);
     }
@@ -387,6 +395,8 @@ export const LiveMatchPage: React.FC = () => {
     pointScoreMe,
     pointScoreOpp,
     recordedPoints,
+    isMatchOver,
+    matchWinner,
   ]);
 
   // ==============================
@@ -658,6 +668,19 @@ export const LiveMatchPage: React.FC = () => {
     let opG = gamesOpp;
     let myS = setsMe;
     let opS = setsOpp;
+    let currSetNum = setNumber;
+    let currGameNum = gameNumber;
+
+    const setsToWin = matchType === "BO5" ? 3 : 2;
+
+    const winSet = (who: "me" | "opponent") => {
+      if (who === "me") myS += 1;
+      else opS += 1;
+      myG = 0;
+      opG = 0;
+      currSetNum += 1;
+      currGameNum = 1;
+    };
 
     const winGame = (who: "me" | "opponent") => {
       myP = "0";
@@ -666,14 +689,16 @@ export const LiveMatchPage: React.FC = () => {
       if (who === "me") myG += 1;
       else opG += 1;
 
-      if (myG >= 6 && myG >= opG + 2) {
-        myS += 1;
-        myG = 0;
-        opG = 0;
-      } else if (opG >= 6 && opG >= myG + 2) {
-        opS += 1;
-        myG = 0;
-        opG = 0;
+      currGameNum += 1;
+
+      // Tiebreak: at 6-6, whoever wins the game (tiebreak) wins the set 7-6
+      const isTiebreakResult = (myG === 7 && opG === 6) || (opG === 7 && myG === 6);
+      // Normal set: 6+ games and 2+ lead
+      const isNormalSetWin = (myG >= 6 && myG >= opG + 2) || (opG >= 6 && opG >= myG + 2);
+
+      if (isTiebreakResult || isNormalSetWin) {
+        const setWinner = myG > opG ? "me" : "opponent";
+        winSet(setWinner);
       }
     };
 
@@ -697,7 +722,18 @@ export const LiveMatchPage: React.FC = () => {
     setGamesOpp(opG);
     setSetsMe(myS);
     setSetsOpp(opS);
+    setSetNumber(currSetNum);
+    setGameNumber(currGameNum);
     setPointNumber((p) => p + 1);
+
+    // Check match end
+    if (myS >= setsToWin) {
+      setIsMatchOver(true);
+      setMatchWinner("me");
+    } else if (opS >= setsToWin) {
+      setIsMatchOver(true);
+      setMatchWinner("opponent");
+    }
   };
 
   const handleUndoLastPoint = () => {
@@ -903,6 +939,8 @@ export const LiveMatchPage: React.FC = () => {
     setRallyPhase(null);
     setKeyEvent("NONE");
     setFinishShot(null);
+    setIsMatchOver(false);
+    setMatchWinner(null);
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(LIVE_STATE_KEY);
@@ -1019,35 +1057,70 @@ export const LiveMatchPage: React.FC = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4">
         <div className="flex flex-col gap-4">
-          <FastTagPanel
-            pendingWinner={pendingWinner}
-            macroPattern={macroPattern}
-            finishType={finishType}
-            showAdvanced={showAdvanced}
-            serveNumber={serveNumber}
-            serveDirection={serveDirection}
-            serveQuality={serveQuality}
-            returnType={returnType}
-            rallyPhase={rallyPhase}
-            keyEvent={keyEvent}
-            finishShot={finishShot}
-            loading={loading}
-            canUndo={recordedPoints.length > 0}
-            isPlayerOnServe={onServe === "me"}
-            onPendingWinnerChange={setPendingWinner}
-            onMacroPatternChange={setMacroPattern}
-            onFinishTypeChange={setFinishType}
-            onToggleAdvanced={() => setShowAdvanced((v) => !v)}
-            onServeNumberChange={setServeNumber}
-            onServeDirectionChange={setServeDirection}
-            onServeQualityChange={setServeQuality}
-            onReturnTypeChange={setReturnType}
-            onRallyPhaseChange={setRallyPhase}
-            onKeyEventChange={setKeyEvent}
-            onFinishShotChange={setFinishShot}
-            onUndo={handleUndoLastPoint}
-            onRegister={handleRegisterAndAnalyze}
-          />
+          {isMatchOver ? (
+            <div className="rounded-[24px] border border-emerald-500/30 bg-[linear-gradient(135deg,rgba(6,78,59,0.30),rgba(15,23,42,0.96))] p-6 md:p-8 shadow-[0_16px_34px_rgba(0,0,0,0.25)]">
+              <div className="text-center">
+                <div className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.20em] text-emerald-300 mb-4">
+                  Match Terminato
+                </div>
+                <div className="text-2xl md:text-3xl font-bold text-white mt-2">
+                  {matchWinner === "me"
+                    ? `${activePlayer?.name || "Player"} vince!`
+                    : `${opponentName || "Opponent"} vince!`}
+                </div>
+                <div className="text-lg text-slate-400 mt-2 font-semibold">
+                  {setsMe} - {setsOpp}
+                </div>
+                <div className="text-sm text-slate-500 mt-1">
+                  {recordedPoints.length} punti registrati
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 mt-6">
+                  <button
+                    onClick={handleExportCsv}
+                    className="px-6 py-3 rounded-full bg-gradient-to-r from-sky-600 to-emerald-500 text-white text-sm font-bold tracking-wide hover:scale-[1.02] transition-all shadow-[0_12px_30px_rgba(14,165,233,0.18)]"
+                  >
+                    Esporta CSV
+                  </button>
+                  <button
+                    onClick={handleResetMatch}
+                    className="px-6 py-3 rounded-full border border-slate-700 bg-slate-900/80 text-slate-300 text-sm font-semibold hover:border-slate-500 transition-all"
+                  >
+                    Nuovo Match
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <FastTagPanel
+              pendingWinner={pendingWinner}
+              macroPattern={macroPattern}
+              finishType={finishType}
+              showAdvanced={showAdvanced}
+              serveNumber={serveNumber}
+              serveDirection={serveDirection}
+              serveQuality={serveQuality}
+              returnType={returnType}
+              rallyPhase={rallyPhase}
+              keyEvent={keyEvent}
+              finishShot={finishShot}
+              loading={loading}
+              canUndo={recordedPoints.length > 0}
+              isPlayerOnServe={onServe === "me"}
+              onPendingWinnerChange={setPendingWinner}
+              onMacroPatternChange={setMacroPattern}
+              onFinishTypeChange={setFinishType}
+              onToggleAdvanced={() => setShowAdvanced((v) => !v)}
+              onServeNumberChange={setServeNumber}
+              onServeDirectionChange={setServeDirection}
+              onServeQualityChange={setServeQuality}
+              onReturnTypeChange={setReturnType}
+              onRallyPhaseChange={setRallyPhase}
+              onKeyEventChange={setKeyEvent}
+              onFinishShotChange={setFinishShot}
+              onUndo={handleUndoLastPoint}
+              onRegister={handleRegisterAndAnalyze}
+            />
+          )}
 
           <PatternInsightsPanel
             prediction={prediction}

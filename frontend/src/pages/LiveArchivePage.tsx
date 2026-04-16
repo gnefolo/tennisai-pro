@@ -128,6 +128,8 @@ interface PersistedLiveState {
     pointScoreMe: PointScore;
     pointScoreOpp: PointScore;
     recordedPoints: RecordedPoint[];
+    isMatchOver?: boolean;
+    matchWinner?: "me" | "opponent" | null;
 }
 
 interface PersistedMatchRecord {
@@ -143,6 +145,8 @@ interface PersistedMatchRecord {
     pointScoreMe: PointScore;
     pointScoreOpp: PointScore;
     recordedPoints: RecordedPoint[];
+    isMatchOver?: boolean;
+    matchWinner?: "me" | "opponent" | null;
 }
 
 type PersistedMatchRecordMap = Record<string, PersistedMatchRecord>;
@@ -313,6 +317,8 @@ export const LiveArchivePage: React.FC<LiveArchivePageProps> = ({
                 pointScoreMe: record.pointScoreMe,
                 pointScoreOpp: record.pointScoreOpp,
                 recordedPoints: record.recordedPoints ?? [],
+                isMatchOver: record.isMatchOver ?? false,
+                matchWinner: record.matchWinner ?? null,
             }
             : {
                 currentSessionId: session.id,
@@ -326,6 +332,8 @@ export const LiveArchivePage: React.FC<LiveArchivePageProps> = ({
                 pointScoreMe: "0",
                 pointScoreOpp: "0",
                 recordedPoints: [],
+                isMatchOver: false,
+                matchWinner: null,
             };
 
         window.localStorage.setItem(
