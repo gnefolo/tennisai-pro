@@ -267,7 +267,7 @@ const FastTagPanel: React.FC<FastTagPanelProps> = ({
     // ── Wizard state via derived logic ───────────────────────────────
     const currentStep = useMemo(() => {
         if (!pendingWinner) return 0;
-        if (!serveDirection && !serveQuality && serveNumber !== "ACE") return 1;
+        if ((!serveDirection || !serveQuality) && serveNumber !== "ACE") return 1;
         if (!macroPattern) return 2;
         if (!finishType) return 3;
         return 4;
