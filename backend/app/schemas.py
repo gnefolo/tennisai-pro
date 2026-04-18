@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 
@@ -28,6 +28,14 @@ class TacticalTagIn(BaseModel):
     point_outcome: Optional[str] = None
 
 
+class RecordedPointIn(BaseModel):
+    isPointWon: Optional[int] = None
+    macroPattern: Optional[str] = None
+    rallyCount: Optional[int] = None
+    isOnServe: int
+    serveNumber: int
+
+
 class LiveTaggedPointRequest(BaseModel):
     set: int
     game: int
@@ -38,6 +46,7 @@ class LiveTaggedPointRequest(BaseModel):
     stats: LiveStatsIn
     flags: LiveFlagsIn
     tag: TacticalTagIn
+    recent_points: Optional[List[RecordedPointIn]] = Field(default_factory=list)
 
 
 class PatternInfoOut(BaseModel):
@@ -52,6 +61,18 @@ class QuickStatsOut(BaseModel):
     pct_return_points_won: float
     pct_first_serve_points_won: float
     pct_second_serve_points_won: float
+
+
+class TacticalV3Out(BaseModel):
+    tactical_call_v3: str
+    tactical_summary_v3: str
+    tactical_rationale_v3: str
+    strategic_priority: str
+    match_plan: str
+    dominant_zone: str
+    vulnerability_zone: str
+    tactical_horizon: str
+    recommended_intent: str
 
 
 class LiveTaggedPointResponse(BaseModel):
@@ -72,3 +93,7 @@ class LiveTaggedPointResponse(BaseModel):
     serve_state: Optional[str] = None
     rally_profile: Optional[str] = None
     pressure_state: Optional[str] = None
+    tactical_explanation: Optional[str] = None
+    risk_level: Optional[str] = None
+
+    tactical_v3: Optional[TacticalV3Out] = None

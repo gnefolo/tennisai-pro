@@ -98,6 +98,14 @@ def build_point_description(
     )
 
 
+def get_prob_regime(proba: float) -> str:
+    if proba > 0.65:
+        return "FAVORABLE"
+    if proba >= 0.45:
+        return "NEUTRAL"
+    return "UNFAVORABLE"
+
+
 def build_tactical_payload(row: Dict[str, Any], proba: float, pattern_id: int) -> Dict[str, Any]:
     momentum_state = get_momentum_state(
         row.get("momentum_trend", 0.0),
@@ -109,95 +117,190 @@ def build_tactical_payload(row: Dict[str, Any], proba: float, pattern_id: int) -
     )
     rally_profile = get_rally_profile(row.get("RallyCount", 4))
     pressure_state = get_pressure_state(row)
-    confidence = confidence_band(proba)
+    
+    regime = get_prob_regime(proba)
+    
+    tactical_call = "Costruisci il punto con pazienza."
+    tactical_explanation = "Situazione equilibrata, gioca il tuo tennis percentuale."
+    risk_level = "MEDIUM"
+    tactical_confidence = "MEDIUM"
+    suggestions = []
 
-    suggestions: List[str] = []
-
-    # ===== pressure first =====
-    if pressure_state == "GAME_POINT_AGAINST":
-        suggestions.append(
-            "Punto delicato: proteggi il margine, evita rischio gratuito e cerca una costruzione affidabile."
-        )
-    elif pressure_state == "BREAK_POINT_AGAINST":
-        suggestions.append(
-            "Palla break contro: alza la percentuale sulla prima o gioca una seconda molto solida sul piano tattico."
-        )
-    elif pressure_state == "BREAK_POINT_FOR":
-        suggestions.append(
-            "Palla break a favore: entra aggressivo in risposta e togli tempo all’avversario fin dal primo colpo."
-        )
-    elif pressure_state == "GAME_POINT_FOR":
-        suggestions.append(
-            "Game point: cerca una chiusura pulita, senza forzare oltre il necessario."
-        )
-
-    # ===== serve / return state =====
-    if serve_state == "SERVING_FIRST":
-        suggestions.append(
-            "Sfrutta la prima: costruisci per chiudere entro i primi due colpi se ricevi palla neutra."
-        )
-    elif serve_state == "SERVING_SECOND":
-        suggestions.append(
-            "Zona ad alto rischio: sulla seconda privilegia profondità, margine e posizione, evitando fretta tattica."
-        )
+    # 1. Base regime logic
+    if regime == "FAVORABLE":
+        risk_level = "HIGH"
+        tactical_confidence = "HIGH" if proba > 0.75 else "MEDIUM"
+        suggestions.append("Vantaggio statistico: comanda lo scambio.")
+    elif regime == "UNFAVORABLE":
+        risk_level = "LOW"
+        tactical_confidence = "HIGH" if proba < 0.30 else "MEDIUM"
+        suggestions.append("Svantaggio statistico: gioca solido, riduci errori gratuiti.")
     else:
-        suggestions.append(
-            "In risposta lavora sulla profondità iniziale e prova a neutralizzare subito il primo vantaggio avversario."
-        )
+        risk_level = "MEDIUM"
+        tactical_confidence = "LOW"
 
-    # ===== momentum =====
-    if momentum_state == "HOT":
-        suggestions.append(
-            "Momento positivo: mantieni pressione e inerzia senza cambiare piano inutilmente."
-        )
-    elif momentum_state == "COLD":
-        suggestions.append(
-            "Momento negativo: stabilizza lo scambio, alza qualità media e interrompi subito il run avversario."
-        )
-    else:
-        suggestions.append(
-            "Situazione equilibrata: fai prevalere esecuzione pulita e disciplina tattica."
-        )
+    # Favorable + positive momentum -> pressione / chiusura del punto
+    if regime == "FAVORABLE" and momentum_state == "HOT":
+        tactical_call = "Pressione massima e chiusura del punto."
+        tactical_explanation = "Hai sia il momentum che le probabilità a favore. Non far respirare l'avversario e prendi l'iniziativa per chiudere."
+        risk_level = "HIGH"
+    
+    # Unfavorable + negative momentum -> stabilizza / riduci rischio
+    elif regime == "UNFAVORABLE" and momentum_state == "COLD":
+        tactical_call = "Stabilizza lo scambio, riduci il rischio."
+        tactical_explanation = "Inerzia e probabilità sfavorevoli. Evita colpi a bassa percentuale, alza la traiettoria e allunga lo scambio per ritrovare ritmo."
+        risk_level = "LOW"
 
-    # ===== rally profile =====
-    if rally_profile == "SHORT":
-        suggestions.append(
-            "Punti brevi dominanti: conta moltissimo la qualità del primo impatto, servizio o risposta."
-        )
-    elif rally_profile == "LONG":
-        suggestions.append(
-            "Scambio lungo atteso: prima di accelerare costruisci ordine, profondità e posizione."
-        )
+    # SERVING_SECOND -> profondità, margine, costruzione
+    if serve_state == "SERVING_SECOND":
+        suggestions.append("Sulla seconda privilegia profondità, margine e posizione temporale.")
+        if regime == "UNFAVORABLE":
+            tactical_call = "Seconda palla: costruisci con margine."
+            tactical_explanation = "Proteggi il servizio. Cerca profondità e kick per allontanare l'avversario, senza forzare vincenti immediati."
+            risk_level = "LOW"
+        else:
+            tactical_call = "Difendi la seconda scendendo in campo."
+            tactical_explanation = "Non subire l'iniziativa sulla seconda, usa la rotazione per tenerti profondo."
 
-    # ===== pattern reinforcement =====
+    # RETURNING + BREAK_POINT_FOR -> risposta aggressiva
+    if serve_state == "RETURNING" and pressure_state == "BREAK_POINT_FOR":
+        tactical_call = "Risposta offensiva. Prendi il controllo."
+        tactical_explanation = "Palla break vitale. Anticipa la risposta e metti subito i piedi in campo."
+        risk_level = "HIGH"
+
+    # pressure alto -> pattern ad alta percentuale
+    if pressure_state in ["GAME_POINT_AGAINST", "BREAK_POINT_AGAINST", "GAME_POINT_FOR"]:
+        if pressure_state != "GAME_POINT_FOR":
+            tactical_call = "Usa il tuo schema migliore."
+            tactical_explanation = "Momento di massima pressione. Affidati a pattern ad alta percentuale, niente improvvisazione."
+            risk_level = "LOW"
+        else:
+            tactical_call = "Chiudi pulito, non strafare."
+            tactical_explanation = "Game point: cerca una chiusura pulita, senza forzare oltre il necessario."
+            risk_level = "LOW"
+
+    # LONG + sfavorevole -> evitare scambio lungo
+    if rally_profile == "LONG" and regime == "UNFAVORABLE":
+        tactical_call = "Spezza il ritmo. Evita scambi prolungati."
+        tactical_explanation = "Negli scambi lunghi sei in sofferenza. Cerca una variazione rapida o prendi la rete appena possibile."
+        risk_level = "HIGH"
+
+    # SHORT + favorevole -> comandare subito
+    if rally_profile == "SHORT" and regime == "FAVORABLE":
+        tactical_call = "Comanda dal primo colpo."
+        tactical_explanation = "Nei punti brevi stai dominando. Massimizza l'efficacia del servizio o del primo colpo in uscita per chiudere rapidamente."
+        risk_level = "HIGH"
+
+    # fallback se tactical_call non è stato ancora sovrascritto con qualcosa di specifico
+    if tactical_call == "Costruisci il punto con pazienza.":
+        if regime == "FAVORABLE":
+            tactical_call = "Iniziativa e controllo."
+            tactical_explanation = "Hai un leggero vantaggio, sfrutta il momento per prendere in mano lo scambio."
+            risk_level = "MEDIUM"
+        elif regime == "UNFAVORABLE":
+            tactical_call = "Difesa attiva e contrattacco."
+            tactical_explanation = "Sei leggermente sotto. Mantieni la profondità e attendi la palla giusta per ribaltare l'inerzia."
+            risk_level = "LOW"
+
+    suggestions.insert(0, tactical_call)
+
+    # pattern reinforcement per dare suggerimenti ai fallback vecchi
     if pattern_id == 2:
-        suggestions.append(
-            "Scenario favorevole a schema aggressivo su servizio: cerca subito campo aperto o vantaggio territoriale."
-        )
+        suggestions.append("Scenario favorevole a schema aggressivo su servizio: cerca subito campo aperto o vantaggio territoriale.")
     elif pattern_id in [5, 8]:
-        suggestions.append(
-            "Scenario favorevole a pressione in risposta: anticipa, entra coi piedi e togli comfort all’avversario."
-        )
+        suggestions.append("Scenario favorevole a pressione in risposta: anticipa, entra coi piedi e togli comfort all’avversario.")
     elif pattern_id == 4:
-        suggestions.append(
-            "Contesto di protezione: riduci rischio e scegli una soluzione ad alta percentuale."
-        )
+        suggestions.append("Contesto di protezione: riduci rischio e scegli una soluzione ad alta percentuale.")
 
-    # de-dup e top 3
+    # de-dup
     unique_suggestions: List[str] = []
     for s in suggestions:
         if s not in unique_suggestions:
             unique_suggestions.append(s)
 
-    headline = unique_suggestions[0] if unique_suggestions else "Gestisci il punto con ordine tattico."
     details = unique_suggestions[:3]
 
     return {
-        "headline": headline,
-        "confidence": confidence,
+        "headline": tactical_call,
+        "confidence": tactical_confidence,
         "momentum_state": momentum_state,
         "serve_state": serve_state,
         "rally_profile": rally_profile,
         "pressure_state": pressure_state,
         "details": details,
+        "tactical_explanation": tactical_explanation,
+        "risk_level": risk_level,
+    }
+def analyze_history(recent_points: List[Dict[str, Any]]) -> Dict[str, str]:
+    if not recent_points:
+        return {
+            "dominant_zone": "N/D (Pochi dati)",
+            "vulnerability_zone": "N/D (Pochi dati)",
+            "recommended_intent": "Costruire con ordine",
+            "strategic_priority": "STABILIZE"
+        }
+        
+    wins = {}
+    losses = {}
+    
+    for pt in recent_points:
+        pattern = pt.get("macroPattern") or "GENERIC"
+        won = pt.get("isPointWon")
+        if won == 1:
+            wins[pattern] = wins.get(pattern, 0) + 1
+        elif won == 0:
+            losses[pattern] = losses.get(pattern, 0) + 1
+
+    dominant = max(wins.items(), key=lambda x: x[1])[0] if wins else "Nessun dominio evidente"
+    vulnerable = max(losses.items(), key=lambda x: x[1])[0] if losses else "Nessuna vulnerabilità grave"
+    
+    # Recommended intent
+    intent = "Mantenere il piano attuale"
+    if vulnerable in ["LONG_RALLY", "DEFENSE_RECOVERY"]:
+        intent = "Abbreviare lo scambio e togliere tempo"
+    elif vulnerable in ["SHORT_RALLY", "SERVE_DOMINANT", "AGGRESSIVE_RETURN"]:
+        intent = "Allungare lo scambio, regolarità tecnica"
+    elif dominant in ["NET_PLAY", "SHORT_BALL_ATTACK"]:
+        intent = "Cercare la rete prima possibile"
+        
+    # Strategic priority
+    total_pts = len(recent_points)
+    win_rate = sum(wins.values()) / total_pts if total_pts > 0 else 0
+    if win_rate < 0.4:
+        priority = "PROTECT"
+    elif win_rate > 0.6:
+        priority = "EXPLOIT"
+    else:
+        if intent.startswith("Abbreviare"):
+            priority = "DISRUPT"
+        else:
+            priority = "PRESS"
+            
+    return {
+        "dominant_zone": dominant.replace("_", " ").title(),
+        "vulnerability_zone": vulnerable.replace("_", " ").title(),
+        "recommended_intent": intent,
+        "strategic_priority": priority
+    }
+
+def build_tactical_payload_v3(base_payload: Dict[str, Any], recent_points: List[Dict[str, Any]]) -> Dict[str, Any]:
+    hist_analysis = analyze_history(recent_points)
+    
+    call_v3 = base_payload["headline"]
+    explanation_v3 = base_payload.get("tactical_explanation", "")
+    
+    summary = f"Rischio {base_payload.get('risk_level', 'MEDIUM')} - {base_payload.get('momentum_state', 'NEUTRAL')}"
+    
+    match_plan = f"Priorità temporanea: {hist_analysis['strategic_priority']}. Dominio su {hist_analysis['dominant_zone']}, attenzione a {hist_analysis['vulnerability_zone']}. Intento raccomandato: {hist_analysis['recommended_intent']}."
+    
+    return {
+        "tactical_call_v3": call_v3,
+        "tactical_summary_v3": summary,
+        "tactical_rationale_v3": explanation_v3,
+        "strategic_priority": hist_analysis['strategic_priority'],
+        "match_plan": match_plan,
+        "dominant_zone": hist_analysis['dominant_zone'],
+        "vulnerability_zone": hist_analysis['vulnerability_zone'],
+        "tactical_horizon": "Punto e breve termine" if len(recent_points) < 15 else "Lungo termine",
+        "recommended_intent": hist_analysis['recommended_intent']
     }

@@ -50,6 +50,24 @@ function toneFromPressure(state?: string) {
     }
 }
 
+function toneFromRiskLevel(risk?: string) {
+    switch (risk) {
+        case "HIGH":
+            return "border-rose-500/40 bg-rose-500/20 text-rose-200";
+        case "LOW":
+            return "border-emerald-500/40 bg-emerald-500/20 text-emerald-200";
+        default:
+            return "border-amber-500/40 bg-amber-500/20 text-amber-200";
+    }
+}
+
+function toneFromPriority(priority?: string) {
+    if (priority === "EXPLOIT") return "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+    if (priority === "PROTECT") return "border-amber-500/40 bg-amber-500/10 text-amber-300";
+    if (priority === "DISRUPT") return "border-purple-500/40 bg-purple-500/10 text-purple-300";
+    return "border-sky-500/40 bg-sky-500/10 text-sky-300";
+}
+
 const PatternInsightsPanel: React.FC<PatternInsightsPanelProps> = ({
     prediction,
     taggedPrediction,
@@ -181,11 +199,62 @@ const PatternInsightsPanel: React.FC<PatternInsightsPanelProps> = ({
                             </div>
                         </div>
 
-                        {prediction.tactical_call && (
-                            <div className="rounded-[20px] border border-sky-500/20 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.96),rgba(6,78,59,0.14))] px-4 py-4">
-                                <div className={labelClass}>Tactical call</div>
-                                <div className="mt-2 text-sm md:text-base font-semibold leading-relaxed text-slate-50">
-                                    {prediction.tactical_call}
+                        {/* LIV. 1: POINT DECISION (se v3 o v2) */}
+                        {(prediction.tactical_v3?.tactical_call_v3 || prediction.tactical_call) && (
+                            <div className="rounded-[20px] border border-sky-500/20 bg-[linear-gradient(135deg,rgba(8,47,73,0.28),rgba(15,23,42,0.96),rgba(6,78,59,0.14))] px-4 py-4 relative shadow-[inset_0_1px_10px_rgba(14,165,233,0.1)]">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className={labelClass}>Call Tattica Immediata</div>
+                                    {prediction.risk_level && (
+                                        <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${toneFromRiskLevel(prediction.risk_level)} shadow-[0_0_10px_rgba(0,0,0,0.5)]`}>
+                                            Risk: {prediction.risk_level}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="text-sm md:text-base font-semibold leading-relaxed text-slate-50">
+                                    {prediction.tactical_v3?.tactical_call_v3 || prediction.tactical_call}
+                                </div>
+                                {(prediction.tactical_v3?.tactical_rationale_v3 || prediction.tactical_explanation) && (
+                                    <div className="mt-3 pt-3 border-t border-sky-500/10 text-[11.5px] italic text-sky-100/70">
+                                        « {prediction.tactical_v3?.tactical_rationale_v3 || prediction.tactical_explanation} »
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* LIV. 2: MICRO STRATEGY */}
+                        {prediction.tactical_v3 && (
+                            <div className="rounded-[20px] border border-slate-700/60 bg-slate-900/40 px-4 py-4">
+                                <div className={labelClass}>Micro-Strategia in Corso</div>
+                                
+                                <div className="mt-3 grid grid-cols-2 gap-3">
+                                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-2 text-center">
+                                        <div className="text-[9px] uppercase tracking-wider text-emerald-500/70 mb-1">Dominante in</div>
+                                        <div className="text-[11px] font-semibold text-emerald-300">{prediction.tactical_v3.dominant_zone}</div>
+                                    </div>
+                                    <div className="rounded-xl border border-rose-500/20 bg-rose-950/20 p-2 text-center">
+                                        <div className="text-[9px] uppercase tracking-wider text-rose-500/70 mb-1">Vulnerabile in</div>
+                                        <div className="text-[11px] font-semibold text-rose-300">{prediction.tactical_v3.vulnerability_zone}</div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 flex justify-between items-center bg-slate-950 rounded-xl px-3 py-2 border border-slate-800">
+                                    <span className="text-[10px] text-slate-400 capitalize">Intento raccomandato:</span>
+                                    <span className="text-xs font-bold text-sky-400">{prediction.tactical_v3.recommended_intent}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* LIV. 3: MATCH PLAN */}
+                        {prediction.tactical_v3 && (
+                            <div className="rounded-[20px] border border-amber-500/20 bg-[linear-gradient(135deg,rgba(251,191,36,0.05),rgba(15,23,42,0.96))] px-4 py-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className={labelClass}>Match Plan</div>
+                                    <div className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${toneFromPriority(prediction.tactical_v3.strategic_priority)}`}>
+                                        {prediction.tactical_v3.strategic_priority}
+                                    </div>
+                                </div>
+                                <div className="mt-2 text-sm text-amber-100/90 leading-relaxed italic">
+                                    {prediction.tactical_v3.match_plan}
                                 </div>
                             </div>
                         )}

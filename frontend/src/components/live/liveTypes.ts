@@ -39,6 +39,19 @@ export interface PredictionResponse {
     | "BREAK_POINT_FOR"
     | "BREAK_POINT_AGAINST"
     | string;
+    tactical_explanation?: string;
+    risk_level?: "LOW" | "MEDIUM" | "HIGH" | string;
+    tactical_v3?: {
+        tactical_call_v3: string;
+        tactical_summary_v3: string;
+        tactical_rationale_v3: string;
+        strategic_priority: string;
+        match_plan: string;
+        dominant_zone: string;
+        vulnerability_zone: string;
+        tactical_horizon: string;
+        recommended_intent: string;
+    };
 }
 
 export interface LiveTaggedPointResponse extends PredictionResponse {
@@ -173,6 +186,14 @@ export interface RecordedPoint {
     taggedPattern?: string;
     pointDescription?: string;
     nextPointPatternHint?: string;
+    tacticalCall?: string;
+    tacticalExplanation?: string;
+    riskLevel?: string;
+    strategicPriority?: string;
+    matchPlan?: string;
+    dominantZone?: string;
+    vulnerabilityZone?: string;
+    recommendedIntent?: string;
     setScoreMe: number;
     setScoreOpp: number;
     gameScoreMe: number;

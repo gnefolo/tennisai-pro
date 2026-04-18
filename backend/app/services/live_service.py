@@ -8,6 +8,7 @@ from app.services.tactical_engine import (
     build_point_description,
     build_tagged_pattern_name,
     build_tactical_payload,
+    build_tactical_payload_v3,
 )
 from app.model_features import WIN_FEATURES
 
@@ -25,6 +26,11 @@ def analyze_live_point(payload: Dict[str, Any]) -> Dict[str, Any]:
         row,
         point_win_probability,
         fused_pattern["pattern_id"],
+    )
+
+    tactical_v3_payload = build_tactical_payload_v3(
+        tactical_payload,
+        payload.get("recent_points", [])
     )
 
     next_point_pattern_hint = build_next_point_hint(
@@ -69,4 +75,8 @@ def analyze_live_point(payload: Dict[str, Any]) -> Dict[str, Any]:
         "serve_state": tactical_payload["serve_state"],
         "rally_profile": tactical_payload["rally_profile"],
         "pressure_state": tactical_payload["pressure_state"],
+        "tactical_explanation": tactical_payload.get("tactical_explanation"),
+        "risk_level": tactical_payload.get("risk_level"),
+
+        "tactical_v3": tactical_v3_payload,
     }

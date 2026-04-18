@@ -14,13 +14,13 @@
   "use strict";
 
   // ── CONFIG ──────────────────────────────────────────────────────────
-  const P1_NAME = "N. Djokovic";
-  const P2_NAME = "C. Alcaraz";
-  const TOURNAMENT = "Roland Garros Sim";
+  const P1_NAME = "J. Sinner";
+  const P2_NAME = "D. Medvedev";
+  const TOURNAMENT = "BNP Paribas Open";
   const SURFACE = "Clay";       // Hard | Clay | Grass | Other
   const FORMAT = "BO3";         // BO3 | BO5
   const FIRST_SVR = "me";       // "me" | "opponent"
-  const ROUND = "SF";
+  const ROUND = "F";
   const P1_HAND = "R";
   const P1_STYLE = "all_court";
 

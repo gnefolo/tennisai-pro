@@ -107,6 +107,14 @@ interface RecordedPoint {
     taggedPattern?: string;
     pointDescription?: string;
     nextPointPatternHint?: string;
+    tacticalCall?: string;
+    tacticalExplanation?: string;
+    riskLevel?: string;
+    strategicPriority?: string;
+    matchPlan?: string;
+    dominantZone?: string;
+    vulnerabilityZone?: string;
+    recommendedIntent?: string;
     setScoreMe: number;
     setScoreOpp: number;
     gameScoreMe: number;
@@ -419,6 +427,14 @@ export const LiveArchivePage: React.FC<LiveArchivePageProps> = ({
             "tagged_pattern",
             "point_description",
             "next_point_pattern_hint",
+            "tactical_call",
+            "tactical_explanation",
+            "risk_level",
+            "strategic_priority",
+            "match_plan",
+            "dominant_zone",
+            "vulnerability_zone",
+            "recommended_intent",
             "player_name",
             "opponent_name",
             "tournament",
@@ -467,6 +483,14 @@ export const LiveArchivePage: React.FC<LiveArchivePageProps> = ({
                 pt.taggedPattern ?? "",
                 pt.pointDescription ?? "",
                 pt.nextPointPatternHint ?? "",
+                pt.tacticalCall ?? "",
+                pt.tacticalExplanation ?? "",
+                pt.riskLevel ?? "",
+                pt.strategicPriority ?? "",
+                pt.matchPlan ?? "",
+                pt.dominantZone ?? "",
+                pt.vulnerabilityZone ?? "",
+                pt.recommendedIntent ?? "",
                 playerName,
                 session.opponentName,
                 session.tournament,
