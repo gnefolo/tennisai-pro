@@ -1,0 +1,290 @@
+/* ===================================================================
+   Tennis AI Pro — Design Tokens · v2.0
+   CSS Custom Properties + Core Utilities
+   =================================================================== */
+
+:root {
+  /* ---------- COLOR · BRAND ---------- */
+  --color-court-night:       #0B1220;
+  --color-baseline-white:    #F7F8FA;
+  --color-ace-lime:          #D4FF3A;
+  --color-ace-lime-hover:    #C4EF2A;
+  --color-clay-amber:        #E9A23B;
+  --color-net-graphite:      #2A3142;
+  --color-fog:               #C9CFDA;
+  --color-line:              #E5E8EE;
+
+  /* ---------- COLOR · SEMANTIC ---------- */
+  --color-success:           #22C55E;
+  --color-success-bg:        #F0FDF4;
+  --color-warning:           #F59E0B;
+  --color-warning-bg:        #FFFBEB;
+  --color-error:             #EF4444;
+  --color-error-bg:          #FEF2F2;
+  --color-info:              #3B82F6;
+  --color-info-bg:           #EFF6FF;
+
+  /* ---------- COLOR · ALPHA ---------- */
+  --color-ace-lime-soft:     rgba(212, 255, 58, 0.12);
+  --color-court-night-soft:  rgba(11, 18, 32, 0.06);
+  --color-dark-surface-1:    rgba(255, 255, 255, 0.04);
+  --color-dark-surface-2:    rgba(255, 255, 255, 0.06);
+  --color-dark-border:       rgba(255, 255, 255, 0.08);
+
+  /* ---------- SEMANTIC TOKENS · LIGHT ---------- */
+  --bg-base:                 var(--color-baseline-white);
+  --bg-surface:              #FFFFFF;
+  --bg-surface-2:            var(--color-baseline-white);
+  --text-primary:            var(--color-court-night);
+  --text-secondary:          var(--color-net-graphite);
+  --text-tertiary:           var(--color-fog);
+  --text-on-accent:          var(--color-court-night);
+  --border-subtle:           var(--color-line);
+  --border-strong:           var(--color-net-graphite);
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --ff-head: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --ff-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --ff-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  --fw-regular:   400;
+  --fw-medium:    500;
+  --fw-semibold:  600;
+  --fw-bold:      700;
+
+  --fs-11: 11px;  --fs-12: 12px;  --fs-13: 13px;  --fs-14: 14px;
+  --fs-16: 16px;  --fs-18: 18px;  --fs-20: 20px;  --fs-24: 24px;
+  --fs-28: 28px;  --fs-32: 32px;  --fs-40: 40px;  --fs-48: 48px;
+  --fs-56: 56px;  --fs-72: 72px;
+
+  --lh-tight:   1.05;
+  --lh-snug:    1.15;
+  --lh-normal:  1.50;
+  --lh-relaxed: 1.65;
+
+  --ls-tightest: -0.03em;
+  --ls-tighter:  -0.02em;
+  --ls-tight:    -0.01em;
+  --ls-normal:    0;
+  --ls-wide:      0.06em;
+  --ls-wider:     0.12em;
+  --ls-widest:    0.24em;
+
+  /* ---------- SPACING · base 4 ---------- */
+  --sp-4: 4px;    --sp-8: 8px;    --sp-12: 12px;
+  --sp-16: 16px;  --sp-20: 20px;  --sp-24: 24px;
+  --sp-32: 32px;  --sp-48: 48px;  --sp-64: 64px;
+  --sp-96: 96px;  --sp-128: 128px;
+
+  /* ---------- RADIUS ---------- */
+  --r-xs:   4px;
+  --r-sm:   8px;
+  --r-md:   16px;
+  --r-lg:   24px;
+  --r-pill: 999px;
+
+  /* ---------- ELEVATION ---------- */
+  --e-0:  none;
+  --e-1:  0 1px 2px rgba(11, 18, 32, 0.06);
+  --e-2:  0 8px 24px rgba(11, 18, 32, 0.08);
+  --e-3:  0 20px 48px rgba(11, 18, 32, 0.16);
+  --focus-ring: 0 0 0 3px rgba(212, 255, 58, 0.40);
+
+  /* ---------- MOTION ---------- */
+  --ease:         cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast:     160ms;
+  --dur-medium:   240ms;
+  --dur-slow:     400ms;
+  --dur-loader:   700ms;
+
+  /* ---------- LAYOUT ---------- */
+  --container-max: 1240px;
+  --gutter-mobile:  16px;
+  --gutter-tablet:  20px;
+  --gutter-desktop: 24px;
+
+  /* ---------- BREAKPOINTS (as reference, not used in vars) ----------
+     --bp-tablet:  768px
+     --bp-desktop: 1024px
+  */
+}
+
+/* ===================================================================
+   DARK MODE · overrides semantic tokens only
+   =================================================================== */
+
+[data-theme="dark"],
+.theme-dark {
+  --bg-base:         var(--color-court-night);
+  --bg-surface:      var(--color-dark-surface-1);
+  --bg-surface-2:    var(--color-dark-surface-2);
+  --text-primary:    var(--color-baseline-white);
+  --text-secondary:  var(--color-fog);
+  --text-tertiary:   var(--color-net-graphite);
+  --border-subtle:   var(--color-dark-border);
+  --border-strong:   var(--color-fog);
+  --e-1:             0 0 0 1px var(--color-dark-border);
+  --e-2:             0 0 0 1px rgba(212, 255, 58, 0.15);
+  --e-3:             0 20px 48px rgba(0, 0, 0, 0.4),
+                     0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-base:         var(--color-court-night);
+    --bg-surface:      var(--color-dark-surface-1);
+    --bg-surface-2:    var(--color-dark-surface-2);
+    --text-primary:    var(--color-baseline-white);
+    --text-secondary:  var(--color-fog);
+    --text-tertiary:   var(--color-net-graphite);
+    --border-subtle:   var(--color-dark-border);
+    --border-strong:   var(--color-fog);
+  }
+}
+
+/* ===================================================================
+   BASE · applied globally
+   =================================================================== */
+
+html {
+  font-family: var(--ff-body);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-size: var(--fs-16);
+  line-height: var(--lh-normal);
+}
+
+/* Focus visibility everywhere */
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-xs);
+}
+
+/* ===================================================================
+   TYPE STYLES · composite, ready-to-apply
+   =================================================================== */
+
+.type-h1 {
+  font-family: var(--ff-head);
+  font-weight: var(--fw-bold);
+  font-size: clamp(var(--fs-40), 6vw, var(--fs-72));
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tightest);
+}
+
+.type-h2 {
+  font-family: var(--ff-head);
+  font-weight: var(--fw-bold);
+  font-size: clamp(var(--fs-28), 3.2vw, var(--fs-40));
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tighter);
+}
+
+.type-h3 {
+  font-family: var(--ff-head);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-24);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--ls-tight);
+}
+
+.type-body-l {
+  font-family: var(--ff-body);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-18);
+  line-height: var(--lh-normal);
+}
+
+.type-body-m {
+  font-family: var(--ff-body);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-16);
+  line-height: var(--lh-normal);
+}
+
+.type-body-s {
+  font-family: var(--ff-body);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-14);
+  line-height: var(--lh-normal);
+}
+
+.type-caption {
+  font-family: var(--ff-body);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-12);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+}
+
+.type-stat {
+  font-family: var(--ff-head);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-48);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tighter);
+  font-variant-numeric: tabular-nums;
+}
+
+.type-mono {
+  font-family: var(--ff-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===================================================================
+   CONTAINER & GRID · 12-column responsive
+   =================================================================== */
+
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--gutter-mobile);
+}
+
+@media (min-width: 768px) {
+  .container { padding: 0 var(--gutter-tablet); }
+}
+
+@media (min-width: 1024px) {
+  .container { padding: 0 var(--gutter-desktop); }
+}
+
+.grid-12 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--gutter-mobile);
+}
+
+@media (min-width: 768px) {
+  .grid-12 {
+    grid-template-columns: repeat(8, 1fr);
+    gap: var(--gutter-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-12 {
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--gutter-desktop);
+  }
+}
+
+/* ===================================================================
+   REDUCED MOTION · accessibility
+   =================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

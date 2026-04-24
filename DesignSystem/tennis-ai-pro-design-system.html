@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tennis AI Pro — Design System v1.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Palette */
+    --court-night: #0B1220;
+    --baseline-white: #F7F8FA;
+    --ace-lime: #D4FF3A;
+    --clay-amber: #E9A23B;
+    --net-graphite: #2A3142;
+    --fog: #C9CFDA;
+    --line: #E5E8EE;
+
+    /* Type */
+    --ff-head: 'Space Grotesk', system-ui, sans-serif;
+    --ff-body: 'Inter', system-ui, sans-serif;
+
+    /* Radius */
+    --r-sm: 8px;
+    --r-md: 16px;
+    --r-lg: 24px;
+    --r-pill: 999px;
+
+    /* Elevation */
+    --e-1: 0 1px 2px rgba(11,18,32,0.06);
+    --e-2: 0 8px 24px rgba(11,18,32,0.08);
+    --e-3: 0 20px 48px rgba(11,18,32,0.16);
+
+    /* Motion */
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--ff-body);
+    background: var(--baseline-white);
+    color: var(--court-night);
+    line-height: 1.5;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Layout */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+  /* HERO */
+  .hero {
+    background: var(--court-night);
+    color: var(--baseline-white);
+    padding: 96px 0 120px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 85% 20%, rgba(212,255,58,0.12), transparent 40%),
+      radial-gradient(circle at 15% 80%, rgba(233,162,59,0.08), transparent 35%);
+    pointer-events: none;
+  }
+  .hero-inner { position: relative; z-index: 1; }
+  .eyebrow {
+    font-family: var(--ff-body);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.36em;
+    text-transform: uppercase;
+    color: var(--ace-lime);
+    margin-bottom: 24px;
+  }
+  .hero h1 {
+    font-family: var(--ff-head);
+    font-weight: 700;
+    font-size: clamp(48px, 7vw, 88px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    max-width: 900px;
+  }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--ace-lime);
+  }
+  .hero .sub {
+    margin-top: 32px;
+    font-size: 20px;
+    max-width: 640px;
+    color: var(--fog);
+  }
+  .hero .meta {
+    margin-top: 48px;
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    border-left: 2px solid var(--ace-lime);
+    padding-left: 16px;
+  }
+  .meta-item .k {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--fog);
+    margin-bottom: 4px;
+  }
+  .meta-item .v {
+    font-family: var(--ff-head);
+    font-weight: 500;
+    font-size: 18px;
+  }
+
+  /* SECTIONS */
+  section.block { padding: 96px 0; border-bottom: 1px solid var(--line); }
+  section.block:last-of-type { border-bottom: none; }
+
+  .section-head { margin-bottom: 56px; max-width: 720px; }
+  .section-num {
+    font-family: var(--ff-head);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--clay-amber);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .section-head h2 {
+    font-family: var(--ff-head);
+    font-weight: 700;
+    font-size: clamp(32px, 4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-head p { color: var(--net-graphite); font-size: 18px; }
+
+  /* COLOR */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .swatch {
+    border-radius: var(--r-md);
+    overflow: hidden;
+    box-shadow: var(--e-1);
+    transition: transform 240ms var(--ease), box-shadow 240ms var(--ease);
+    cursor: pointer;
+  }
+  .swatch:hover { transform: translateY(-4px); box-shadow: var(--e-2); }
+  .swatch .fill { height: 160px; position: relative; }
+  .swatch .meta {
+    background: white;
+    padding: 20px;
+    border-top: 1px solid var(--line);
+  }
+  .swatch .name {
+    font-family: var(--ff-head);
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+  .swatch .role {
+    font-size: 12px;
+    color: var(--net-graphite);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+  }
+  .swatch .hex {
+    font-family: var(--ff-head);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--net-graphite);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* TYPE */
+  .type-demo { display: grid; gap: 32px; }
+  .type-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 48px;
+    align-items: baseline;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .type-row:last-child { border-bottom: none; }
+  .type-label {
+    font-family: var(--ff-body);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--net-graphite);
+  }
+  .type-label small {
+    display: block;
+    margin-top: 6px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--fog);
+    font-size: 11px;
+  }
+  .t-h1 { font-family: var(--ff-head); font-weight: 700; font-size: 56px; line-height: 1.05; letter-spacing: -0.02em; }
+  .t-h2 { font-family: var(--ff-head); font-weight: 700; font-size: 40px; line-height: 1.1; letter-spacing: -0.01em; }
+  .t-h3 { font-family: var(--ff-head); font-weight: 500; font-size: 28px; line-height: 1.15; }
+  .t-body-l { font-family: var(--ff-body); font-weight: 400; font-size: 18px; line-height: 1.55; }
+  .t-body-m { font-family: var(--ff-body); font-weight: 400; font-size: 16px; line-height: 1.5; }
+  .t-caption { font-family: var(--ff-body); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .t-stat { font-family: var(--ff-head); font-weight: 500; font-size: 48px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+  /* BUTTONS */
+  .ui-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .ui-card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 32px;
+  }
+  .ui-card h4 {
+    font-family: var(--ff-head);
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 20px;
+    color: var(--net-graphite);
+  }
+  .ui-card .row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    font-family: var(--ff-body);
+    font-weight: 600;
+    font-size: 15px;
+    padding: 14px 28px;
+    border-radius: var(--r-pill);
+    border: none;
+    cursor: pointer;
+    transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--ace-lime); color: var(--court-night); }
+  .btn-primary:hover { box-shadow: 0 6px 20px rgba(212,255,58,0.4); }
+  .btn-secondary { background: transparent; color: var(--court-night); border: 1.5px solid var(--net-graphite); }
+  .btn-secondary:hover { background: var(--court-night); color: var(--baseline-white); }
+  .btn-ghost { background: transparent; color: var(--court-night); text-decoration: underline; text-underline-offset: 4px; padding: 14px 8px; }
+  .btn-icon {
+    width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--baseline-white); border: 1px solid var(--line); border-radius: 12px;
+  }
+
+  /* SHAPE / RADIUS */
+  .shape-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .shape-box {
+    width: 88px; height: 88px;
+    background: var(--court-night);
+    color: var(--ace-lime);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--ff-head); font-weight: 600; font-size: 13px;
+  }
+
+  /* SPACING */
+  .spacing-demo { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .sp-block {
+    background: linear-gradient(180deg, var(--ace-lime), transparent);
+    border-bottom: 2px solid var(--court-night);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 8px;
+    font-family: var(--ff-head); font-weight: 500; font-size: 12px;
+    min-width: 48px;
+  }
+
+  /* ELEVATION */
+  .elev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 32px; }
+  .elev-card {
+    background: white; border-radius: var(--r-md); padding: 32px;
+    text-align: center;
+  }
+  .elev-card.e1 { box-shadow: var(--e-1); }
+  .elev-card.e2 { box-shadow: var(--e-2); }
+  .elev-card.e3 { box-shadow: var(--e-3); }
+  .elev-card .label {
+    font-family: var(--ff-head); font-weight: 600; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+  .elev-card code {
+    display: block;
+    margin-top: 12px;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 11px;
+    color: var(--net-graphite);
+    background: var(--baseline-white);
+    padding: 8px;
+    border-radius: var(--r-sm);
+  }
+
+  /* COMPONENT MOCKUPS */
+  .mock-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+  }
+  .mock {
+    background: var(--court-night);
+    border-radius: var(--r-lg);
+    padding: 32px;
+    color: var(--baseline-white);
+    position: relative;
+    overflow: hidden;
+  }
+  .mock-label {
+    font-family: var(--ff-body);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--fog);
+    margin-bottom: 16px;
+  }
+  .mock h3 {
+    font-family: var(--ff-head);
+    font-weight: 600;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .mock .stat-big {
+    font-family: var(--ff-head);
+    font-weight: 500;
+    font-size: 64px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ace-lime);
+    font-variant-numeric: tabular-nums;
+    margin: 24px 0 8px;
+  }
+  .mock .stat-label { color: var(--fog); font-size: 14px; }
+  .mock .bar {
+    margin-top: 24px; height: 6px; border-radius: 999px;
+    background: rgba(255,255,255,0.1); overflow: hidden;
+  }
+  .mock .bar span { display: block; height: 100%; background: var(--ace-lime); }
+  .mock .chip {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
+    background: rgba(212,255,58,0.15);
+    color: var(--ace-lime);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* LOGO SECTION */
+  .logos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .logo-card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 32px;
+    transition: border-color 240ms var(--ease);
+  }
+  .logo-card:hover { border-color: var(--court-night); }
+  .logo-stage {
+    background: var(--baseline-white);
+    border-radius: var(--r-md);
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+  .logo-card h4 {
+    font-family: var(--ff-head);
+    font-weight: 600;
+    font-size: 20px;
+    margin-bottom: 8px;
+  }
+  .logo-card .style {
+    font-family: var(--ff-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--clay-amber);
+    margin-bottom: 12px;
+  }
+  .logo-card p { font-size: 14px; color: var(--net-graphite); line-height: 1.5; }
+
+  /* TONE OF VOICE */
+  .tov-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 720px) { .tov-grid { grid-template-columns: 1fr; } }
+  .tov-card {
+    border-radius: var(--r-md);
+    padding: 28px;
+    border: 1.5px solid;
+  }
+  .tov-do {
+    border-color: var(--ace-lime);
+    background: linear-gradient(180deg, rgba(212,255,58,0.08), transparent);
+  }
+  .tov-dont {
+    border-color: var(--clay-amber);
+    background: linear-gradient(180deg, rgba(233,162,59,0.06), transparent);
+  }
+  .tov-card .tag {
+    font-family: var(--ff-head);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .tov-do .tag { color: #5a8a00; }
+  .tov-dont .tag { color: #a36d1c; }
+  .tov-card p { font-family: var(--ff-head); font-weight: 500; font-size: 18px; line-height: 1.4; }
+
+  /* FOOTER */
+  footer {
+    background: var(--court-night);
+    color: var(--fog);
+    padding: 64px 0;
+    text-align: center;
+  }
+  footer .mark {
+    font-family: var(--ff-head);
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--baseline-white);
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  footer .mark span { color: var(--ace-lime); }
+  footer .sm { font-size: 13px; margin-top: 16px; }
+
+  /* UTILITY */
+  .nav-dots {
+    position: fixed; right: 24px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 12px; z-index: 100;
+  }
+  @media (max-width: 900px) { .nav-dots { display: none; } }
+  .nav-dots a {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--fog);
+    transition: background 200ms var(--ease), transform 200ms var(--ease);
+    display: block;
+  }
+  .nav-dots a:hover { background: var(--court-night); transform: scale(1.4); }
+
+  .tag-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--court-night);
+    color: var(--ace-lime);
+    border-radius: var(--r-pill);
+    font-family: var(--ff-head);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero-inner > * { animation: fadeUp 800ms var(--ease) both; }
+  .hero-inner > *:nth-child(2) { animation-delay: 100ms; }
+  .hero-inner > *:nth-child(3) { animation-delay: 200ms; }
+  .hero-inner > *:nth-child(4) { animation-delay: 300ms; }
+</style>
+</head>
+<body>
+
+<nav class="nav-dots">
+  <a href="#brand" title="Brand"></a>
+  <a href="#color" title="Color"></a>
+  <a href="#type" title="Typography"></a>
+  <a href="#ui" title="UI Elements"></a>
+  <a href="#components" title="Components"></a>
+  <a href="#logos" title="Logos"></a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div class="eyebrow">Design System · v1.0 · 2026</div>
+    <h1>Tennis <em>AI</em> Pro.<br/>Ogni colpo, misurato.</h1>
+    <p class="sub">Il sistema visivo e strategico che traduce l'intelligenza artificiale applicata al tennis in un'esperienza pulita, professionale e fedele al gioco.</p>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="k">Versione</div>
+        <div class="v">1.0</div>
+      </div>
+      <div class="meta-item">
+        <div class="k">Tipografia</div>
+        <div class="v">Space Grotesk × Inter</div>
+      </div>
+      <div class="meta-item">
+        <div class="k">Accento</div>
+        <div class="v">Ace Lime · #D4FF3A</div>
+      </div>
+      <div class="meta-item">
+        <div class="k">Moduli</div>
+        <div class="v">Brand · Design · Logo</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- BRAND -->
+<section class="block" id="brand">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">01 — Brand Book</div>
+      <h2>L'anima del prodotto</h2>
+      <p>Un brand coach-centric per giocatori che vogliono capire come migliorare, non solo quanto hanno corso.</p>
+    </div>
+
+    <div class="ui-grid" style="margin-bottom: 48px;">
+      <div class="ui-card">
+        <h4>Mission</h4>
+        <p class="t-body-m">Democratizzare il coaching tennistico di élite attraverso l'AI, rendendo l'analisi tecnica accessibile a ogni giocatore.</p>
+      </div>
+      <div class="ui-card">
+        <h4>Vision</h4>
+        <p class="t-body-m">Diventare il sistema operativo del tennis moderno, dove dato e istinto convergono in ogni colpo.</p>
+      </div>
+      <div class="ui-card">
+        <h4>Personality</h4>
+        <p class="t-body-m">Preciso · Ambizioso · Intelligente · Dinamico</p>
+      </div>
+      <div class="ui-card">
+        <h4>Valori</h4>
+        <p class="t-body-m">Precisione del dato · Accessibilità dell'élite · Rispetto per il gioco · Miglioramento continuo.</p>
+      </div>
+    </div>
+
+    <h3 style="font-family:var(--ff-head); font-weight:600; font-size:24px; margin:48px 0 24px;">Tone of Voice</h3>
+    <div class="tov-grid">
+      <div class="tov-card tov-do">
+        <div class="tag">✓ Così parliamo</div>
+        <p>"Il tuo rovescio lungolinea è cresciuto del 18% questo mese. Continuiamo a spingere."</p>
+      </div>
+      <div class="tov-card tov-dont">
+        <div class="tag">✗ Così no</div>
+        <p>"L'algoritmo ha rilevato un incremento nelle performance del colpo di rovescio."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COLOR -->
+<section class="block" id="color">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">02 — Color Palette</div>
+      <h2>Il campo di notte, una pallina in aria</h2>
+      <p>Evitiamo il cliché del verde-campo. La nostra palette è premium-tech: profondità scura, lampo lime, un tocco di terra rossa.</p>
+    </div>
+
+    <div class="color-grid">
+      <div class="swatch" onclick="navigator.clipboard.writeText('#0B1220')">
+        <div class="fill" style="background:#0B1220;"></div>
+        <div class="meta">
+          <div class="name">Court Night</div>
+          <div class="role">Primario · Sfondi</div>
+          <div class="hex">#0B1220</div>
+        </div>
+      </div>
+      <div class="swatch" onclick="navigator.clipboard.writeText('#F7F8FA')">
+        <div class="fill" style="background:#F7F8FA; border-bottom:1px solid var(--line);"></div>
+        <div class="meta">
+          <div class="name">Baseline White</div>
+          <div class="role">Secondario · Superfici</div>
+          <div class="hex">#F7F8FA</div>
+        </div>
+      </div>
+      <div class="swatch" onclick="navigator.clipboard.writeText('#D4FF3A')">
+        <div class="fill" style="background:#D4FF3A;"></div>
+        <div class="meta">
+          <div class="name">Ace Lime</div>
+          <div class="role">Accento · CTA</div>
+          <div class="hex">#D4FF3A</div>
+        </div>
+      </div>
+      <div class="swatch" onclick="navigator.clipboard.writeText('#E9A23B')">
+        <div class="fill" style="background:#E9A23B;"></div>
+        <div class="meta">
+          <div class="name">Clay Amber</div>
+          <div class="role">Supporto · Achievement</div>
+          <div class="hex">#E9A23B</div>
+        </div>
+      </div>
+      <div class="swatch" onclick="navigator.clipboard.writeText('#2A3142')">
+        <div class="fill" style="background:#2A3142;"></div>
+        <div class="meta">
+          <div class="name">Net Graphite</div>
+          <div class="role">Testi · Bordi</div>
+          <div class="hex">#2A3142</div>
+        </div>
+      </div>
+      <div class="swatch" onclick="navigator.clipboard.writeText('#C9CFDA')">
+        <div class="fill" style="background:#C9CFDA;"></div>
+        <div class="meta">
+          <div class="name">Fog</div>
+          <div class="role">Neutro · Placeholder</div>
+          <div class="hex">#C9CFDA</div>
+        </div>
+      </div>
+      <div class="swatch" onclick="navigator.clipboard.writeText('#E5E8EE')">
+        <div class="fill" style="background:#E5E8EE;"></div>
+        <div class="meta">
+          <div class="name">Line</div>
+          <div class="role">Divider · Bordi leggeri</div>
+          <div class="hex">#E5E8EE</div>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:24px; font-size:13px; color:var(--net-graphite);">💡 Click su un campione per copiare l'HEX.</p>
+  </div>
+</section>
+
+<!-- TYPE -->
+<section class="block" id="type">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">03 — Typography</div>
+      <h2>Geometria tecnica. Leggibilità totale.</h2>
+      <p>Space Grotesk per l'impatto, Inter per la sostanza. Una coppia moderna, tecnica, senza affettazione.</p>
+    </div>
+
+    <div class="type-demo">
+      <div class="type-row">
+        <div class="type-label">H1 — Display<small>Space Grotesk · Bold · 56/60</small></div>
+        <div class="t-h1">Ogni colpo conta.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">H2 — Title<small>Space Grotesk · Bold · 40/44</small></div>
+        <div class="t-h2">Il tuo gioco, in numeri</div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">H3 — Subtitle<small>Space Grotesk · Medium · 28/32</small></div>
+        <div class="t-h3">Pattern del servizio</div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">Body L<small>Inter · Regular · 18/28</small></div>
+        <div class="t-body-l">L'AI analizza ogni scambio del match e individua i pattern che il tuo occhio non vede. Non sostituisce il coach, lo affianca con dati.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">Body M<small>Inter · Regular · 16/24</small></div>
+        <div class="t-body-m">Testo principale per le interfacce: leggibile in tabelle, form, paragrafi di media lunghezza.</div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">Caption<small>Inter · SemiBold · 13 · +6% tracking</small></div>
+        <div class="t-caption">WINNER · BACKHAND · SET 2</div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">Stat<small>Space Grotesk · Medium · Tabular</small></div>
+        <div class="t-stat">87.4%</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- UI ELEMENTS -->
+<section class="block" id="ui">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">04 — UI Elements</div>
+      <h2>Regole concrete, non dogmi</h2>
+      <p>Il sistema è scalabile perché è semplice. Pochi radius, bottoni con gerarchie chiare, ombre discrete.</p>
+    </div>
+
+    <div class="ui-grid">
+      <div class="ui-card">
+        <h4>Bottoni</h4>
+        <div class="row" style="flex-direction:column; align-items:flex-start;">
+          <button class="btn btn-primary">Analizza il match</button>
+          <button class="btn btn-secondary">Vedi dettaglio</button>
+          <button class="btn btn-ghost">Mostra tutti</button>
+          <button class="btn-icon" aria-label="icon">◐</button>
+        </div>
+      </div>
+
+      <div class="ui-card">
+        <h4>Radius scale</h4>
+        <div class="shape-row">
+          <div class="shape-box" style="border-radius:8px;">8</div>
+          <div class="shape-box" style="border-radius:16px;">16</div>
+          <div class="shape-box" style="border-radius:24px;">24</div>
+          <div class="shape-box" style="border-radius:999px;">pill</div>
+        </div>
+      </div>
+
+      <div class="ui-card">
+        <h4>Spacing (4px scale)</h4>
+        <div class="spacing-demo">
+          <div class="sp-block" style="height:4px;">4</div>
+          <div class="sp-block" style="height:8px;">8</div>
+          <div class="sp-block" style="height:16px;">16</div>
+          <div class="sp-block" style="height:24px;">24</div>
+          <div class="sp-block" style="height:32px;">32</div>
+          <div class="sp-block" style="height:48px;">48</div>
+          <div class="sp-block" style="height:64px;">64</div>
+        </div>
+      </div>
+
+      <div class="ui-card">
+        <h4>Tag & Chip</h4>
+        <div class="row">
+          <span class="tag-pill">Winner</span>
+          <span class="tag-pill">Ace</span>
+          <span class="tag-pill">Break point</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-family:var(--ff-head); font-weight:600; font-size:24px; margin:48px 0 24px;">Elevation</h3>
+    <div class="elev-grid">
+      <div class="elev-card e1">
+        <div class="label">Level 1</div>
+        <div style="color:var(--net-graphite); font-size:13px;">Card a riposo</div>
+        <code>0 1px 2px rgba(11,18,32,.06)</code>
+      </div>
+      <div class="elev-card e2">
+        <div class="label">Level 2</div>
+        <div style="color:var(--net-graphite); font-size:13px;">Hover · Dropdown</div>
+        <code>0 8px 24px rgba(11,18,32,.08)</code>
+      </div>
+      <div class="elev-card e3">
+        <div class="label">Level 3</div>
+        <div style="color:var(--net-graphite); font-size:13px;">Modali · Floating</div>
+        <code>0 20px 48px rgba(11,18,32,.16)</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPONENTS -->
+<section class="block" id="components">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">05 — Components in context</div>
+      <h2>Come si comporta il sistema</h2>
+      <p>Mockup di componenti reali che useresti in dashboard, onboarding e post-match report.</p>
+    </div>
+
+    <div class="mock-grid">
+      <div class="mock">
+        <div class="mock-label">MATCH PERFORMANCE · SET 2</div>
+        <h3>Rovescio lungolinea</h3>
+        <div class="stat-big">87%</div>
+        <div class="stat-label">precisione · +18% vs ultimo match</div>
+        <div class="bar"><span style="width:87%;"></span></div>
+      </div>
+
+      <div class="mock">
+        <div class="mock-label">PATTERN DETECTED</div>
+        <h3>Servizio → slice</h3>
+        <div class="stat-big">64%</div>
+        <div class="stat-label">dei tuoi game vinti al servizio</div>
+        <div style="margin-top:24px;"><span class="chip">STRENGTH</span></div>
+      </div>
+
+      <div class="mock" style="background:var(--baseline-white); color:var(--court-night); border:1px solid var(--line);">
+        <div class="mock-label" style="color:var(--net-graphite);">COACH SUGGESTION</div>
+        <h3 style="color:var(--court-night);">Prova questo</h3>
+        <p style="font-size:15px; line-height:1.5; color:var(--net-graphite); margin-top:12px;">Nei game pari al servizio, il tuo avversario ha vinto il 72% dei punti sul ritorno di rovescio. <br/><br/><strong style="color:var(--court-night);">Alterna servizio esterno e al corpo.</strong></p>
+        <button class="btn btn-primary" style="margin-top:24px;">Applica al prossimo match</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LOGOS -->
+<section class="block" id="logos">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-num">06 — Logo Concepts</div>
+      <h2>Cinque direzioni. Una decisione.</h2>
+      <p>Ogni concept risponde a un'esigenza diversa: riconoscibilità immediata, scalabilità, narrazione, posizionamento tech.</p>
+    </div>
+
+    <div class="logos-grid">
+      <!-- CONCEPT 1 -->
+      <div class="logo-card">
+        <div class="logo-stage">
+          <svg width="160" height="100" viewBox="0 0 160 100">
+            <defs>
+              <clipPath id="ball1"><circle cx="50" cy="50" r="32"/></clipPath>
+            </defs>
+            <circle cx="50" cy="50" r="32" fill="#0B1220"/>
+            <path d="M 22 40 Q 50 20 80 46" stroke="#D4FF3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <text x="92" y="56" font-family="Space Grotesk" font-weight="700" font-size="18" fill="#0B1220">TENNIS <tspan fill="#D4FF3A">AI</tspan> PRO</text>
+          </svg>
+        </div>
+        <div class="style">Geometrico · Minimalista</div>
+        <h4>The Slice</h4>
+        <p>Il cerchio è pallina, la curva è slice, rete e grafico ascendente. Tre letture in un segno. Miglior scalabilità.</p>
+      </div>
+
+      <!-- CONCEPT 2 -->
+      <div class="logo-card">
+        <div class="logo-stage">
+          <svg width="220" height="60" viewBox="0 0 220 60">
+            <text x="10" y="40" font-family="Space Grotesk" font-weight="700" font-size="32" fill="#0B1220" letter-spacing="-1">tennis <tspan fill="#0B1220">a</tspan><tspan fill="#0B1220">i</tspan> pro</text>
+            <circle cx="117" cy="17" r="3" fill="#D4FF3A"/>
+            <line x1="95" y1="48" x2="140" y2="48" stroke="#D4FF3A" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="style">Tipografico</div>
+        <h4>Baseline</h4>
+        <p>Il logotipo è il logo. Baseline di Ace Lime sotto "ai". La pallina sostituisce il puntino. Confident, essenziale.</p>
+      </div>
+
+      <!-- CONCEPT 3 -->
+      <div class="logo-card">
+        <div class="logo-stage">
+          <svg width="160" height="100" viewBox="0 0 160 100">
+            <path d="M 20 70 L 40 50" stroke="#2A3142" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 45 55 L 65 35" stroke="#0B1220" stroke-width="5" stroke-linecap="round"/>
+            <path d="M 70 38 L 90 18" stroke="#D4FF3A" stroke-width="5" stroke-linecap="round"/>
+            <polygon points="85,14 94,18 90,26" fill="#D4FF3A"/>
+            <text x="105" y="58" font-family="Space Grotesk" font-weight="700" font-size="14" fill="#0B1220">TENNIS</text>
+            <text x="105" y="74" font-family="Space Grotesk" font-weight="700" font-size="14" fill="#0B1220">AI PRO</text>
+          </svg>
+        </div>
+        <div class="style">Astratto · Dinamico</div>
+        <h4>The Vector</h4>
+        <p>Tre segmenti in ascesa: sequenza di un colpo + traiettoria + progresso. Il segmento finale in Ace Lime è il punto segnato.</p>
+      </div>
+
+      <!-- CONCEPT 4 -->
+      <div class="logo-card">
+        <div class="logo-stage">
+          <svg width="160" height="100" viewBox="0 0 160 100">
+            <circle cx="50" cy="50" r="30" fill="none" stroke="#0B1220" stroke-width="5"/>
+            <line x1="20" y1="50" x2="60" y2="50" stroke="#0B1220" stroke-width="4" stroke-linecap="round"/>
+            <line x1="50" y1="38" x2="50" y2="62" stroke="#0B1220" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="50" cy="50" r="4" fill="#D4FF3A"/>
+            <text x="95" y="56" font-family="Space Grotesk" font-weight="700" font-size="15" fill="#0B1220">TENNIS AI</text>
+            <text x="95" y="72" font-family="Space Grotesk" font-weight="500" font-size="11" fill="#2A3142" letter-spacing="2">PRO</text>
+          </svg>
+        </div>
+        <div class="style">Iconico · Simbolico</div>
+        <h4>The Eye</h4>
+        <p>Monogramma circolare che evoca l'Hawk-Eye. Lo spazio negativo suggerisce un occhio: osservazione, precisione, controllo.</p>
+      </div>
+
+      <!-- CONCEPT 5 -->
+      <div class="logo-card">
+        <div class="logo-stage">
+          <svg width="160" height="100" viewBox="0 0 160 100">
+            <g transform="translate(28,22)">
+              <line x1="8" y1="8" x2="44" y2="44" stroke="#2A3142" stroke-width="1.5"/>
+              <line x1="44" y1="8" x2="8" y2="44" stroke="#2A3142" stroke-width="1.5"/>
+              <circle cx="8"  cy="8"  r="3" fill="#2A3142"/>
+              <circle cx="26" cy="8"  r="3" fill="#2A3142"/>
+              <circle cx="44" cy="8"  r="3" fill="#2A3142"/>
+              <circle cx="8"  cy="26" r="3" fill="#2A3142"/>
+              <circle cx="26" cy="26" r="7" fill="#D4FF3A" stroke="#0B1220" stroke-width="1.5"/>
+              <circle cx="44" cy="26" r="3" fill="#2A3142"/>
+              <circle cx="8"  cy="44" r="3" fill="#2A3142"/>
+              <circle cx="26" cy="44" r="3" fill="#2A3142"/>
+              <circle cx="44" cy="44" r="3" fill="#2A3142"/>
+            </g>
+            <text x="92" y="56" font-family="Space Grotesk" font-weight="700" font-size="15" fill="#0B1220">TENNIS AI</text>
+            <text x="92" y="72" font-family="Space Grotesk" font-weight="500" font-size="11" fill="#2A3142" letter-spacing="2">PRO</text>
+          </svg>
+        </div>
+        <div class="style">Geometrico · Tech</div>
+        <h4>Net Node</h4>
+        <p>Griglia 3×3: rete da tennis + neural network + centro del campo. Il nodo acceso è il giocatore al centro del suo dato.</p>
+      </div>
+
+      <!-- RECOMMENDATION CARD -->
+      <div class="logo-card" style="background:var(--court-night); color:var(--baseline-white); border:none;">
+        <div class="logo-stage" style="background:rgba(255,255,255,0.04);">
+          <svg width="60" height="60" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="#D4FF3A"/>
+            <path d="M 15 35 Q 50 10 85 40" stroke="#0B1220" stroke-width="4" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="style" style="color:var(--ace-lime);">Raccomandazione</div>
+        <h4 style="color:var(--baseline-white);">Concept #1 — The Slice</h4>
+        <p style="color:var(--fog);">Il concept più versatile. Scala dall'app icon al billboard. Leggibile in un quarto di secondo. Concept #5 (Net Node) consigliato come marchio secondario B2B.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="mark">tennis <span>ai</span> pro</div>
+    <div style="font-size:13px; letter-spacing:0.2em; text-transform:uppercase;">Design System · v1.0</div>
+    <div class="sm">Ogni colpo, misurato.</div>
+  </div>
+</footer>
+
+</body>
+</html>

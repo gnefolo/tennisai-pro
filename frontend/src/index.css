@@ -1,3 +1,261 @@
+/* ============================================================
+   Tennis AI Pro — Design Tokens v2.0
+   Importa questo file PRIMA di qualsiasi altro stile.
+   Non modificare i valori qui: usa i token nei componenti.
+   ============================================================ */
+
+/* ─── GOOGLE FONTS ──────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── TAILWIND DIRECTIVES ───────────────────────────────────── */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── CSS CUSTOM PROPERTIES (Design Tokens) ─────────────────── */
+@layer base {
+    :root {
+        /* Core Palette */
+        --court-night: #0B1220;
+        --baseline-white: #F7F8FA;
+        --ace-lime: #D4FF3A;
+        --ace-lime-hover: #C4EF2A;
+        --ace-lime-soft: rgba(212, 255, 58, 0.12);
+        --clay-amber: #E9A23B;
+        --net-graphite: #2A3142;
+        --fog: #C9CFDA;
+        --line: #E5E8EE;
+
+        /* Semantic Colors */
+        --success: #22C55E;
+        --success-bg: #F0FDF4;
+        --warning: #F59E0B;
+        --warning-bg: #FFFBEB;
+        --error: #EF4444;
+        --error-bg: #FEF2F2;
+        --info: #3B82F6;
+        --info-bg: #EFF6FF;
+
+        /* Typography */
+        --ff-head: 'Space Grotesk', system-ui, sans-serif;
+        --ff-body: 'Inter', system-ui, sans-serif;
+        --ff-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+        /* Border Radius */
+        --r-xs: 4px;
+        --r-sm: 8px;
+        --r-md: 16px;
+        --r-lg: 24px;
+        --r-pill: 999px;
+
+        /* Elevation */
+        --e-0: none;
+        --e-1: 0 1px 2px rgba(11, 18, 32, 0.06);
+        --e-2: 0 8px 24px rgba(11, 18, 32, 0.08);
+        --e-3: 0 20px 48px rgba(11, 18, 32, 0.16);
+        --focus-ring: 0 0 0 3px rgba(212, 255, 58, 0.4);
+        --lime-glow: 0 6px 20px rgba(212, 255, 58, 0.35);
+
+        /* Motion */
+        --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+        --dur-fast: 160ms;
+        --dur-med: 240ms;
+        --dur-slow: 400ms;
+    }
+
+    /* ─── BASE RESETS ──────────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    html {
+        scroll-behavior: smooth;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+        font-family: var(--ff-body);
+        background-color: var(--baseline-white);
+        color: var(--court-night);
+        line-height: 1.5;
+        font-size: 16px;
+    }
+
+    /* ─── FOCUS VISIBLE ─────────────────────────────────────────── */
+    :focus-visible {
+        outline: none;
+        box-shadow: var(--focus-ring);
+    }
+}
+
+/* ─── UTILITY CLASSES (via @layer components) ───────────────── */
+@layer components {
+
+    /* Tipografia */
+    .font-head {
+        font-family: var(--ff-head);
+    }
+
+    .font-mono {
+        font-family: var(--ff-mono);
+    }
+
+    /* Eyebrow label */
+    .text-eyebrow {
+        font-family: var(--ff-body);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: var(--ace-lime);
+    }
+
+    /* Stat number grande */
+    .text-stat {
+        font-family: var(--ff-head);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    /* Card base (light) */
+    .card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: var(--r-md);
+        box-shadow: var(--e-1);
+        transition: box-shadow var(--dur-med) var(--ease),
+            transform var(--dur-med) var(--ease);
+    }
+
+    .card:hover {
+        box-shadow: var(--e-2);
+        transform: translateY(-2px);
+    }
+
+    /* Card dark */
+    .card-dark {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: var(--r-md);
+    }
+
+    /* Button primario */
+    .btn-primary {
+        background: var(--ace-lime);
+        color: var(--court-night);
+        font-family: var(--ff-body);
+        font-weight: 600;
+        font-size: 15px;
+        padding: 12px 24px;
+        border-radius: var(--r-pill);
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        line-height: 1;
+        transition: background var(--dur-fast) var(--ease),
+            box-shadow var(--dur-fast) var(--ease),
+            transform var(--dur-fast) var(--ease);
+    }
+
+    .btn-primary:hover {
+        background: var(--ace-lime-hover);
+        box-shadow: var(--lime-glow);
+    }
+
+    .btn-primary:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-ring);
+    }
+
+    .btn-primary:active {
+        transform: translateY(1px);
+    }
+
+    .btn-primary:disabled {
+        background: var(--line);
+        color: var(--fog);
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    /* Button secondario */
+    .btn-secondary {
+        background: transparent;
+        color: var(--court-night);
+        border: 1.5px solid var(--net-graphite);
+        font-family: var(--ff-body);
+        font-weight: 600;
+        font-size: 15px;
+        padding: 12px 24px;
+        border-radius: var(--r-pill);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        line-height: 1;
+        transition: all var(--dur-fast) var(--ease);
+    }
+
+    .btn-secondary:hover {
+        border-color: var(--court-night);
+        box-shadow: var(--e-1);
+    }
+
+    /* Badge semantici */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: var(--r-pill);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+
+    .badge-success {
+        background: var(--success-bg);
+        color: var(--success);
+    }
+
+    .badge-warning {
+        background: var(--warning-bg);
+        color: var(--warning);
+    }
+
+    .badge-error {
+        background: var(--error-bg);
+        color: var(--error);
+    }
+
+    .badge-info {
+        background: var(--info-bg);
+        color: var(--info);
+    }
+
+    .badge-lime {
+        background: var(--ace-lime-soft);
+        color: var(--court-night);
+    }
+
+    /* Progress bar */
+    .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: var(--line);
+        border-radius: var(--r-pill);
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: var(--ace-lime);
+        border-radius: var(--r-pill);
+        transition: width var(--dur-slow) var(--ease);
+    }
+}

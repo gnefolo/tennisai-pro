@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background: court-night -->
+  <rect width="32" height="32" rx="8" fill="#0B1220"/>
+  <!-- Lettera T in baseline-white -->
+  <text
+    x="16" y="24"
+    font-family="'Space Grotesk', system-ui, sans-serif"
+    font-weight="700"
+    font-size="22"
+    letter-spacing="-0.02em"
+    text-anchor="middle"
+    fill="#F7F8FA"
+  >T</text>
+  <!-- Punto ace-lime in basso a destra -->
+  <circle cx="24" cy="24" r="4" fill="#D4FF3A"/>
+</svg>

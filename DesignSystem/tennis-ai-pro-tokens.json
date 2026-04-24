@@ -1,0 +1,397 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$metadata": {
+    "name": "Tennis AI Pro",
+    "version": "2.0.0",
+    "description": "Design tokens for Tennis AI Pro platform — brand system, UI components, motion.",
+    "author": "Tennis AI Pro Design Team",
+    "lastUpdated": "2026-04-21"
+  },
+
+  "color": {
+    "brand": {
+      "court-night": {
+        "$value": "#0B1220",
+        "$type": "color",
+        "$description": "Primary brand color. Used for dark backgrounds, immersive surfaces, headers."
+      },
+      "baseline-white": {
+        "$value": "#F7F8FA",
+        "$type": "color",
+        "$description": "Secondary brand color. Light surfaces, reading areas, card backgrounds."
+      },
+      "ace-lime": {
+        "$value": "#D4FF3A",
+        "$type": "color",
+        "$description": "Accent color. CTA buttons, highlights, active states, key data points."
+      },
+      "ace-lime-hover": {
+        "$value": "#C4EF2A",
+        "$type": "color",
+        "$description": "Ace Lime hover state. Slightly darker for button interactions."
+      },
+      "clay-amber": {
+        "$value": "#E9A23B",
+        "$type": "color",
+        "$description": "Supporting color. Achievements, warnings, secondary data."
+      },
+      "net-graphite": {
+        "$value": "#2A3142",
+        "$type": "color",
+        "$description": "Dark text, borders on light backgrounds, secondary emphasis."
+      },
+      "fog": {
+        "$value": "#C9CFDA",
+        "$type": "color",
+        "$description": "Neutral gray. Secondary text, placeholders, disabled states."
+      },
+      "line": {
+        "$value": "#E5E8EE",
+        "$type": "color",
+        "$description": "Subtle dividers, light borders, separators."
+      }
+    },
+
+    "semantic": {
+      "success": {
+        "$value": "#22C55E",
+        "$type": "color",
+        "$description": "Success states, confirmations, positive trends."
+      },
+      "success-bg": {
+        "$value": "#F0FDF4",
+        "$type": "color"
+      },
+      "warning": {
+        "$value": "#F59E0B",
+        "$type": "color"
+      },
+      "warning-bg": {
+        "$value": "#FFFBEB",
+        "$type": "color"
+      },
+      "error": {
+        "$value": "#EF4444",
+        "$type": "color",
+        "$description": "Errors, destructive actions, validation failures."
+      },
+      "error-bg": {
+        "$value": "#FEF2F2",
+        "$type": "color"
+      },
+      "info": {
+        "$value": "#3B82F6",
+        "$type": "color"
+      },
+      "info-bg": {
+        "$value": "#EFF6FF",
+        "$type": "color"
+      }
+    },
+
+    "alpha": {
+      "ace-lime-soft": {
+        "$value": "rgba(212, 255, 58, 0.12)",
+        "$type": "color",
+        "$description": "Ace Lime with 12% alpha — for active states on dark surfaces."
+      },
+      "court-night-soft": {
+        "$value": "rgba(11, 18, 32, 0.06)",
+        "$type": "color",
+        "$description": "Court Night with 6% alpha — for subtle elevation shadows."
+      },
+      "dark-surface-1": {
+        "$value": "rgba(255, 255, 255, 0.04)",
+        "$type": "color",
+        "$description": "Dark mode surface layer 1."
+      },
+      "dark-surface-2": {
+        "$value": "rgba(255, 255, 255, 0.06)",
+        "$type": "color",
+        "$description": "Dark mode surface layer 2 — for hover states."
+      },
+      "dark-border": {
+        "$value": "rgba(255, 255, 255, 0.08)",
+        "$type": "color",
+        "$description": "Borders on dark surfaces."
+      }
+    }
+  },
+
+  "typography": {
+    "fontFamily": {
+      "heading": {
+        "$value": "Space Grotesk, system-ui, sans-serif",
+        "$type": "fontFamily",
+        "$description": "Display and heading typeface. Google Fonts · free license."
+      },
+      "body": {
+        "$value": "Inter, system-ui, sans-serif",
+        "$type": "fontFamily",
+        "$description": "Body text and UI labels typeface. Google Fonts · free license."
+      },
+      "mono": {
+        "$value": "JetBrains Mono, SF Mono, Consolas, monospace",
+        "$type": "fontFamily",
+        "$description": "For code snippets, technical values, data when needed."
+      }
+    },
+
+    "fontWeight": {
+      "regular": { "$value": 400, "$type": "fontWeight" },
+      "medium": { "$value": 500, "$type": "fontWeight" },
+      "semibold": { "$value": 600, "$type": "fontWeight" },
+      "bold": { "$value": 700, "$type": "fontWeight" }
+    },
+
+    "fontSize": {
+      "11": { "$value": "11px", "$type": "dimension" },
+      "12": { "$value": "12px", "$type": "dimension" },
+      "13": { "$value": "13px", "$type": "dimension" },
+      "14": { "$value": "14px", "$type": "dimension" },
+      "16": { "$value": "16px", "$type": "dimension" },
+      "18": { "$value": "18px", "$type": "dimension" },
+      "20": { "$value": "20px", "$type": "dimension" },
+      "24": { "$value": "24px", "$type": "dimension" },
+      "28": { "$value": "28px", "$type": "dimension" },
+      "32": { "$value": "32px", "$type": "dimension" },
+      "40": { "$value": "40px", "$type": "dimension" },
+      "48": { "$value": "48px", "$type": "dimension" },
+      "56": { "$value": "56px", "$type": "dimension" },
+      "72": { "$value": "72px", "$type": "dimension" }
+    },
+
+    "lineHeight": {
+      "tight": { "$value": "1.05", "$type": "number" },
+      "snug": { "$value": "1.15", "$type": "number" },
+      "normal": { "$value": "1.5", "$type": "number" },
+      "relaxed": { "$value": "1.65", "$type": "number" }
+    },
+
+    "letterSpacing": {
+      "tightest": { "$value": "-0.03em", "$type": "dimension" },
+      "tighter": { "$value": "-0.02em", "$type": "dimension" },
+      "tight": { "$value": "-0.01em", "$type": "dimension" },
+      "normal": { "$value": "0", "$type": "dimension" },
+      "wide": { "$value": "0.06em", "$type": "dimension" },
+      "wider": { "$value": "0.12em", "$type": "dimension" },
+      "widest": { "$value": "0.24em", "$type": "dimension" }
+    },
+
+    "style": {
+      "h1": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.heading}",
+          "fontWeight": "{typography.fontWeight.bold}",
+          "fontSize": "{typography.fontSize.56}",
+          "lineHeight": "{typography.lineHeight.tight}",
+          "letterSpacing": "{typography.letterSpacing.tighter}"
+        }
+      },
+      "h2": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.heading}",
+          "fontWeight": "{typography.fontWeight.bold}",
+          "fontSize": "{typography.fontSize.40}",
+          "lineHeight": "{typography.lineHeight.tight}",
+          "letterSpacing": "{typography.letterSpacing.tight}"
+        }
+      },
+      "h3": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.heading}",
+          "fontWeight": "{typography.fontWeight.medium}",
+          "fontSize": "{typography.fontSize.28}",
+          "lineHeight": "{typography.lineHeight.snug}"
+        }
+      },
+      "body-l": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.body}",
+          "fontWeight": "{typography.fontWeight.regular}",
+          "fontSize": "{typography.fontSize.18}",
+          "lineHeight": "{typography.lineHeight.normal}"
+        }
+      },
+      "body-m": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.body}",
+          "fontWeight": "{typography.fontWeight.regular}",
+          "fontSize": "{typography.fontSize.16}",
+          "lineHeight": "{typography.lineHeight.normal}"
+        }
+      },
+      "caption": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.body}",
+          "fontWeight": "{typography.fontWeight.semibold}",
+          "fontSize": "{typography.fontSize.13}",
+          "letterSpacing": "{typography.letterSpacing.wide}",
+          "textTransform": "uppercase"
+        }
+      },
+      "stat": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{typography.fontFamily.heading}",
+          "fontWeight": "{typography.fontWeight.medium}",
+          "fontSize": "{typography.fontSize.48}",
+          "lineHeight": "{typography.lineHeight.tight}",
+          "letterSpacing": "{typography.letterSpacing.tighter}",
+          "fontVariantNumeric": "tabular-nums"
+        }
+      }
+    }
+  },
+
+  "spacing": {
+    "4": { "$value": "4px", "$type": "dimension" },
+    "8": { "$value": "8px", "$type": "dimension" },
+    "12": { "$value": "12px", "$type": "dimension" },
+    "16": { "$value": "16px", "$type": "dimension" },
+    "20": { "$value": "20px", "$type": "dimension" },
+    "24": { "$value": "24px", "$type": "dimension" },
+    "32": { "$value": "32px", "$type": "dimension" },
+    "48": { "$value": "48px", "$type": "dimension" },
+    "64": { "$value": "64px", "$type": "dimension" },
+    "96": { "$value": "96px", "$type": "dimension" },
+    "128": { "$value": "128px", "$type": "dimension" }
+  },
+
+  "radius": {
+    "xs": { "$value": "4px", "$type": "dimension" },
+    "sm": { "$value": "8px", "$type": "dimension", "$description": "Small elements, inputs, tags, badges." },
+    "md": { "$value": "16px", "$type": "dimension", "$description": "Cards, panels, default containers." },
+    "lg": { "$value": "24px", "$type": "dimension", "$description": "Hero containers, video modules." },
+    "pill": { "$value": "999px", "$type": "dimension", "$description": "Fully rounded — buttons, chips." }
+  },
+
+  "elevation": {
+    "e-0": {
+      "$value": "none",
+      "$type": "shadow"
+    },
+    "e-1": {
+      "$type": "shadow",
+      "$value": {
+        "color": "rgba(11, 18, 32, 0.06)",
+        "offsetX": "0",
+        "offsetY": "1px",
+        "blur": "2px",
+        "spread": "0"
+      },
+      "$description": "Level 1 — card at rest."
+    },
+    "e-2": {
+      "$type": "shadow",
+      "$value": {
+        "color": "rgba(11, 18, 32, 0.08)",
+        "offsetX": "0",
+        "offsetY": "8px",
+        "blur": "24px",
+        "spread": "0"
+      },
+      "$description": "Level 2 — hover / dropdown."
+    },
+    "e-3": {
+      "$type": "shadow",
+      "$value": {
+        "color": "rgba(11, 18, 32, 0.16)",
+        "offsetX": "0",
+        "offsetY": "20px",
+        "blur": "48px",
+        "spread": "0"
+      },
+      "$description": "Level 3 — modal / floating panel."
+    },
+    "focus-ring": {
+      "$type": "shadow",
+      "$value": {
+        "color": "rgba(212, 255, 58, 0.4)",
+        "offsetX": "0",
+        "offsetY": "0",
+        "blur": "0",
+        "spread": "3px"
+      },
+      "$description": "Focus visible ring — accessibility."
+    }
+  },
+
+  "motion": {
+    "duration": {
+      "fast": {
+        "$value": "160ms",
+        "$type": "duration",
+        "$description": "Micro-interactions: button hover, color change."
+      },
+      "medium": {
+        "$value": "240ms",
+        "$type": "duration",
+        "$description": "Standard: dropdown, tooltip, card lift."
+      },
+      "slow": {
+        "$value": "400ms",
+        "$type": "duration",
+        "$description": "Page transitions, modal enter."
+      },
+      "loader": {
+        "$value": "700ms",
+        "$type": "duration",
+        "$description": "Loading spinners, continuous rotations."
+      }
+    },
+    "easing": {
+      "standard": {
+        "$value": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "$type": "cubicBezier",
+        "$description": "Default easing — athletic, decisive deceleration."
+      },
+      "linear": {
+        "$value": "linear",
+        "$type": "cubicBezier",
+        "$description": "Only for continuous motion (spinners)."
+      }
+    }
+  },
+
+  "breakpoint": {
+    "mobile": {
+      "$value": "0px",
+      "$type": "dimension",
+      "$description": "< 768px — 4 columns, 16px gutter."
+    },
+    "tablet": {
+      "$value": "768px",
+      "$type": "dimension",
+      "$description": "768 − 1023px — 8 columns, 20px gutter."
+    },
+    "desktop": {
+      "$value": "1024px",
+      "$type": "dimension",
+      "$description": "≥ 1024px — 12 columns, 24px gutter, max container 1240px."
+    }
+  },
+
+  "grid": {
+    "container-max": {
+      "$value": "1240px",
+      "$type": "dimension"
+    },
+    "columns": {
+      "mobile": { "$value": 4, "$type": "number" },
+      "tablet": { "$value": 8, "$type": "number" },
+      "desktop": { "$value": 12, "$type": "number" }
+    },
+    "gutter": {
+      "mobile": { "$value": "16px", "$type": "dimension" },
+      "tablet": { "$value": "20px", "$type": "dimension" },
+      "desktop": { "$value": "24px", "$type": "dimension" }
+    }
+  }
+}

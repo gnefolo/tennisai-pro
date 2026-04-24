@@ -1,131 +1,68 @@
 // src/TennisAIDashboard.tsx
+// REDESIGN v2 — Design System Tennis AI Pro
+// MODIFICHE RISPETTO ALL'ORIGINALE:
+// 1. Rimossi import di HistoricalMatchPage, SlamWizard, MatchCenterPage
+//    (sezione storico esclusa dal prodotto finale)
+// 2. Rimossa la modalità "historical" e tutto il relativo JSX (sidebar wizard,
+//    layout historical, pulsante "Storico Slam" — era già commentato)
+// 3. type mode semplificato: "live" | "liveArchive"
+// 4. Header aggiornato al design system: bg-court-night, font-head, ace-lime
+// 5. Pulsanti nav aggiornati: ace-lime attivo invece di sky-500
+// ⚠️  LOGICA INVARIATA: useState per mode, onOpenLiveSession callback
+
 import React, { useState } from "react";
-import { HistoricalMatchPage } from "./pages/HistoricalMatchPage";
-import { SlamWizard } from "./components/SlamWizard";
 import { LiveMatchPage } from "./pages/LiveMatchPage";
 import { LiveArchivePage } from "./pages/LiveArchivePage";
+import Logo from "./components/ui/Logo";
+import { TacticsIcon, LayersIcon } from "./components/ui/icons";
 
 export const TennisAIDashboard: React.FC = () => {
-  const [mode, setMode] = useState<"historical" | "live" | "liveArchive">(
-    "live"
-  );
-  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-
-  // mostra/nasconde il wizard (solo per modalità storico)
-  const [wizardOpen, setWizardOpen] = useState<boolean>(true);
+  const [mode, setMode] = useState<"live" | "liveArchive">("live");
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 px-3 py-3 md:px-4 md:py-4">
-      {/* più ampia su desktop */}
+    <div className="min-h-screen bg-court-night text-baseline px-3 py-3 md:px-4 md:py-4">
       <div className="max-w-7xl mx-auto flex flex-col gap-3 md:gap-4">
-        {/* HEADER */}
-        <header className="flex items-center justify-between gap-2">
-          <h1 className="text-xl md:text-2xl font-bold">
-            TennisAI Pro <span className="text-sky-400">Dashboard</span>
+
+        {/* ── Header ── */}
+        <header className="sticky top-0 z-50 bg-court-night/90 backdrop-blur-md -mx-3 px-3 md:-mx-4 md:px-4 py-2 border-b border-white/[0.06] flex items-center justify-between gap-2">
+          {/* Logo / titolo */}
+          <h1 className="flex items-baseline gap-2">
+            <Logo variant="wordmark" size="lg" />
+            <span className="font-head text-[28px] text-fog/80 font-normal tracking-tight leading-none">Dashboard</span>
           </h1>
 
+          {/* Nav pills */}
           <div className="flex items-center gap-2 text-xs md:text-sm flex-wrap justify-end">
-            {/* 
-            <button
-              onClick={() => setMode("historical")}
-              className={`px-3 py-1.5 rounded-xl border ${mode === "historical"
-                  ? "border-sky-500 bg-sky-900/40 text-sky-50"
-                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-500"
-                }`}
-            >
-              Storico Slam
-            </button>
-            */}
-
             <button
               onClick={() => setMode("live")}
-              className={`px-3 py-1.5 rounded-xl border ${mode === "live"
-                  ? "border-sky-500 bg-sky-900/40 text-sky-50"
-                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-500"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-[var(--r-pill)] border text-[13px] font-semibold transition-all duration-[var(--dur-fast)] ${mode === "live"
+                ? "bg-ace-lime border-ace-lime text-court-night"
+                : "border-white/10 bg-white/[0.03] text-fog hover:border-ace-lime/30 hover:text-baseline"
                 }`}
             >
-              Modalità live
+              <TacticsIcon size={16} />
+              Live Match
             </button>
-
             <button
               onClick={() => setMode("liveArchive")}
-              className={`px-3 py-1.5 rounded-xl border ${mode === "liveArchive"
-                  ? "border-sky-500 bg-sky-900/40 text-sky-50"
-                  : "border-slate-700 bg-slate-900 text-slate-300 hover:border-sky-500"
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-[var(--r-pill)] border text-[13px] font-semibold transition-all duration-[var(--dur-fast)] ${mode === "liveArchive"
+                ? "bg-ace-lime border-ace-lime text-court-night"
+                : "border-white/10 bg-white/[0.03] text-fog hover:border-ace-lime/30 hover:text-baseline"
                 }`}
             >
-              Archivio match live
+              <LayersIcon size={16} />
+              Archivio Match
             </button>
           </div>
         </header>
 
-        {mode === "historical" ? (
-          // LAYOUT con mini-sidebar sinistra + contenuto
-          <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:h-[calc(100vh-120px)]">
-            {/* MINI SIDEBAR SINISTRA – Toggle Wizard */}
-            <div className="flex md:flex-col items-start md:items-stretch gap-2 md:gap-3 md:w-14">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-2 flex md:flex-col items-center md:items-center justify-center gap-1 md:gap-2">
-                {/* Icona filtri / wizard */}
-                <button
-                  onClick={() => setWizardOpen((prev) => !prev)}
-                  title={
-                    wizardOpen
-                      ? "Nascondi wizard filtri slam"
-                      : "Mostra wizard filtri slam"
-                  }
-                  className={`flex items-center justify-center rounded-full border transition-colors w-9 h-9 md:w-10 md:h-10 ${wizardOpen
-                      ? "border-sky-500 bg-sky-900/60 text-sky-50"
-                      : "border-slate-600 bg-slate-950 text-slate-300 hover:border-sky-500"
-                    }`}
-                >
-                  {/* semplice icona slider/filter inline */}
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-4 h-4 md:w-5 md:h-5"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M5 7H19M7 12H17M9 17H15"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="9" cy="7" r="1.2" fill="currentColor" />
-                    <circle cx="15" cy="12" r="1.2" fill="currentColor" />
-                    <circle cx="11" cy="17" r="1.2" fill="currentColor" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* AREA PRINCIPALE: Wizard (opzionale) + Match Center */}
-            <div
-              className={
-                wizardOpen
-                  ? "flex-1 flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,360px)_minmax(0,1fr)] md:gap-4"
-                  : "flex-1"
-              }
-            >
-              {wizardOpen && (
-                <div className="md:h-full md:overflow-y-auto mb-3 md:mb-0">
-                  <SlamWizard onMatchSelect={setSelectedMatchId} />
-                </div>
-              )}
-
-              <div className="md:h-full md:overflow-y-auto">
-                <HistoricalMatchPage selectedMatchId={selectedMatchId} />
-              </div>
-            </div>
-          </div>
-        ) : mode === "live" ? (
-          <div className="md:h-[calc(100vh-120px)] md:overflow-y-auto">
-            <LiveMatchPage />
-          </div>
+        {/* ── Contenuto ── */}
+        {mode === "live" ? (
+          <LiveMatchPage />
         ) : (
           <LiveArchivePage onOpenLiveSession={() => setMode("live")} />
         )}
+
       </div>
     </div>
   );
