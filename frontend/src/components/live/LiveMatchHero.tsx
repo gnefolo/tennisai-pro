@@ -4,7 +4,7 @@
 //     Modificati esclusivamente: className, colori inline, border, shadow, font tokens.
 
 import React from "react";
-import { SettingsIcon, RefreshIcon } from "../../components/ui/icons"
+import { SettingsIcon, RefreshIcon, LiveDotIcon } from "../../components/ui/icons";
 
 // ─── TIPI (invariati) ────────────────────────────────────────────────────────
 type OnServe = "me" | "opponent";
@@ -35,6 +35,7 @@ interface LiveMatchHeroProps {
     scorePulseKey: number;
     onOpenSettings?: () => void;
     onResetMatch?: () => void;
+    isMatchOver?: boolean;
 }
 
 // ─── DESIGN TOKENS (sostituiscono le costanti hardcoded) ─────────────────────
@@ -44,11 +45,11 @@ const shellCard =
     "bg-[linear-gradient(180deg,rgba(11,18,32,0.96),rgba(5,9,18,0.99))] " +
     "shadow-[0_24px_60px_rgba(0,0,0,0.40)]";
 
-// Meta pill: net-graphite border, bg court-night/80
+// Meta pill — DS badge-neutral: pill, 11px, uppercase, tracking
 const metaPill =
-    "inline-flex items-center rounded-full border border-white/10 " +
-    "bg-court-night/80 px-3 py-1 " +
-    "text-[10px] font-semibold uppercase tracking-[0.18em] text-fog";
+    "inline-flex items-center rounded-full border border-white/[0.10] " +
+    "bg-white/[0.04] px-3 py-1 " +
+    "text-[11px] font-semibold uppercase tracking-[0.08em] text-fog";
 
 // Label piccola
 const labelClass =
@@ -198,6 +199,7 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
     scorePulseKey,
     onOpenSettings,
     onResetMatch,
+    isMatchOver = false,
 }) => {
     const meName = cleanName(playerName, "Tu");
     const oppName = cleanName(opponentName, "Avversario");
@@ -212,10 +214,18 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
             {/* ── Row 1: LIVE badge + meta pills + action buttons ── */}
             <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="flex flex-wrap items-center gap-2">
-                    {/* LIVE badge — success color dal design system */}
-                    <span className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.20em] text-success">
-                        Live
-                    </span>
+                    {/* LIVE / Fine Match badge — DS badge-success / badge-dark */}
+                    {isMatchOver ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">
+                            Fine Match
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-success">
+                            <LiveDotIcon size={10} className="text-success" />
+                            Live
+                        </span>
+                    )}
+                    {/* Meta pills — DS badge-neutral */}
                     <span className={metaPill}>{surface}</span>
                     <span className={metaPill}>{matchType}</span>
                     {round ? <span className={metaPill}>{round}</span> : null}
@@ -254,9 +264,10 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className={metaPill}>Set {setNumber}</span>
-                    <span className={metaPill}>Game {gameNumber}</span>
-                    <span className={metaPill}>Point {pointNumber}</span>
+                    {/* Counter badges — DS badge-dark (court-night + ace-lime) */}
+                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Set {setNumber}</span>
+                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Game {gameNumber}</span>
+                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Point {pointNumber}</span>
                 </div>
             </div>
 

@@ -417,8 +417,11 @@ export const LiveMatchPage: React.FC = () => {
     setPointScoreMe(myP); setPointScoreOpp(opP);
     setGamesMe(myG); setGamesOpp(opG);
     setSetsMe(myS); setSetsOpp(opS);
-    setSetNumber(currSetNum); setGameNumber(currGameNum);
-    setPointNumber((p) => p + 1);
+    const matchJustOver = myS >= setsToWin || opS >= setsToWin;
+    if (!matchJustOver) {
+      setSetNumber(currSetNum); setGameNumber(currGameNum);
+      setPointNumber((p) => p + 1);
+    }
     if (myS >= setsToWin) { setIsMatchOver(true); setMatchWinner("me"); }
     else if (opS >= setsToWin) { setIsMatchOver(true); setMatchWinner("opponent"); }
   };
@@ -539,6 +542,7 @@ export const LiveMatchPage: React.FC = () => {
           scorePulseKey={scorePulseKey}
           onOpenSettings={() => setIsSettingUp(true)}
           onResetMatch={handleResetMatch}
+          isMatchOver={isMatchOver}
         />
       </div>
 
@@ -577,13 +581,14 @@ export const LiveMatchPage: React.FC = () => {
                 <div className="flex flex-wrap justify-center gap-3 mt-6">
                   <button
                     onClick={handleExportCsv}
-                    className="px-6 py-3 rounded-full bg-ace-lime text-court-night text-sm font-bold tracking-wide hover:bg-ace-lime-hover hover:scale-[1.02] transition-all shadow-[var(--lime-glow)]"
-                  ><DownloadIcon size={16} />
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-[var(--r-pill)] bg-ace-lime text-court-night text-sm font-bold tracking-wide hover:bg-ace-lime-hover hover:scale-[1.02] transition-all shadow-[var(--lime-glow)]"
+                  >
+                    <DownloadIcon size={16} />
                     Esporta CSV
                   </button>
                   <button
                     onClick={handleResetMatch}
-                    className="px-6 py-3 rounded-full border border-white/10 bg-white/[0.04] text-fog text-sm font-semibold hover:border-white/20 transition-all"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-[var(--r-pill)] border border-white/10 bg-white/[0.04] text-fog text-sm font-semibold hover:border-white/20 transition-all"
                   >
                     Nuovo Match
                   </button>
