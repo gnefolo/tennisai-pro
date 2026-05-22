@@ -1,23 +1,18 @@
 // src/TennisAIDashboard.tsx
 // REDESIGN v2 — Design System Tennis AI Pro
-// MODIFICHE RISPETTO ALL'ORIGINALE:
-// 1. Rimossi import di HistoricalMatchPage, SlamWizard, MatchCenterPage
-//    (sezione storico esclusa dal prodotto finale)
-// 2. Rimossa la modalità "historical" e tutto il relativo JSX (sidebar wizard,
-//    layout historical, pulsante "Storico Slam" — era già commentato)
-// 3. type mode semplificato: "live" | "liveArchive"
-// 4. Header aggiornato al design system: bg-court-night, font-head, ace-lime
-// 5. Pulsanti nav aggiornati: ace-lime attivo invece di sky-500
-// ⚠️  LOGICA INVARIATA: useState per mode, onOpenLiveSession callback
+// v3: aggiunta tab "Infosys Demo" (non rompe LiveMatchPage né LiveArchivePage)
 
 import React, { useState } from "react";
 import { LiveMatchPage } from "./pages/LiveMatchPage";
 import { LiveArchivePage } from "./pages/LiveArchivePage";
+import { InfosysDemoPage } from "./pages/InfosysDemoPage";
 import Logo from "./components/ui/Logo";
-import { TacticsIcon, LayersIcon } from "./components/ui/icons";
+import { TacticsIcon, LayersIcon, AIIcon } from "./components/ui/icons";
+
+type Mode = "live" | "liveArchive" | "infosysDemo";
 
 export const TennisAIDashboard: React.FC = () => {
-  const [mode, setMode] = useState<"live" | "liveArchive">("live");
+  const [mode, setMode] = useState<Mode>("live");
 
   return (
     <div className="min-h-screen bg-court-night text-baseline px-3 py-3 md:px-4 md:py-4">
@@ -53,14 +48,27 @@ export const TennisAIDashboard: React.FC = () => {
               <LayersIcon size={16} />
               Archivio Match
             </button>
+            <button
+              onClick={() => setMode("infosysDemo")}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-[var(--r-pill)] border text-[13px] font-semibold transition-all duration-[var(--dur-fast)] ${mode === "infosysDemo"
+                ? "bg-ace-lime border-ace-lime text-court-night"
+                : "border-[#D4FF3A]/20 bg-[#D4FF3A]/[0.03] text-fog hover:border-[#D4FF3A]/40 hover:text-baseline"
+                }`}
+            >
+              <AIIcon size={16} />
+              <span className="hidden sm:inline">Infosys Demo</span>
+              <span className="sm:hidden">Demo</span>
+            </button>
           </div>
         </header>
 
         {/* ── Contenuto ── */}
         {mode === "live" ? (
           <LiveMatchPage />
-        ) : (
+        ) : mode === "liveArchive" ? (
           <LiveArchivePage onOpenLiveSession={() => setMode("live")} />
+        ) : (
+          <InfosysDemoPage />
         )}
 
       </div>
