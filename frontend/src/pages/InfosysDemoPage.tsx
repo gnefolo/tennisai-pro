@@ -2,7 +2,7 @@
 // ATP Tactical Intelligence Demo — Infosys/ATP integration showcase
 // Layout: Header → WorkflowStepper → [Left rail | Center stage | Right rail] → Collapsible bottom
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   useInfosysDemoState,
   type DemoStep,
