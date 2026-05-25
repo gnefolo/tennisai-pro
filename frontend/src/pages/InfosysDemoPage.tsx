@@ -5,7 +5,6 @@
 import React, { useState } from "react";
 import {
   useInfosysDemoState,
-  DEMO_SCENARIOS,
   type DemoStep,
   type PatternAlternative,
   type RegisteredOutcome,
@@ -818,6 +817,551 @@ function IntegrationBrief({
   );
 }
 
+// ─── SCENARIO CONFIGURATOR ───────────────────────────────────────────────────
+
+// Deriva la pressureState dai flag e dalla situazione di punteggio
+function derivePressureState(
+  isOnServe: boolean,
+  isBreakPoint: boolean,
+  isGamePoint: boolean,
+  isGamePointAgainst: boolean
+): string {
+  if (isGamePointAgainst) return "GAME_POINT_AGAINST";
+  if (isBreakPoint && isOnServe) return "BREAK_POINT_AGAINST";
+  if (isBreakPoint && !isOnServe) return "BREAK_POINT_FOR";
+  if (isGamePoint) return "GAME_POINT_FOR";
+  return "NEUTRAL";
+}
+
+// Momentum testuale → frazione [0,1]
+const MOMENTUM_VALUES: Record<string, number> = {
+  HOT: 0.8,
+  NEUTRAL: 0.4,
+  COLD: 0.2,
+};
+
+interface ScenarioFormState {
+  player1: string;
+  player2: string;
+  surface: "Hard" | "Clay" | "Grass";
+  round: string;
+  // Punteggio
+  sets: string;         // es. "6-4, 3-5"
+  pointScore: string;   // es. "30-40"
+  set: number;
+  game: number;
+  pointNumber: number;
+  // Servizio
+  isOnServe: boolean;
+  serveNumber: 1 | 2;
+  // Stats (come percentuali intere, convertite in [0,1] prima di inviare)
+  svcPct: number;       // 0-100
+  rtnPct: number;
+  firstSvcPct: number;
+  secondSvcPct: number;
+  // Momentum
+  momentum: "HOT" | "NEUTRAL" | "COLD";
+  // Pressure flags
+  isBreakPoint: boolean;
+  isGamePoint: boolean;
+  isGamePointAgainst: boolean;
+}
+
+const DEFAULT_FORM: ScenarioFormState = {
+  player1: "",
+  player2: "",
+  surface: "Hard",
+  round: "QF",
+  sets: "",
+  pointScore: "0-0",
+  set: 1,
+  game: 1,
+  pointNumber: 1,
+  isOnServe: true,
+  serveNumber: 1,
+  svcPct: 64,
+  rtnPct: 45,
+  firstSvcPct: 72,
+  secondSvcPct: 52,
+  momentum: "NEUTRAL",
+  isBreakPoint: false,
+  isGamePoint: false,
+  isGamePointAgainst: false,
+};
+
+function formToScenario(f: ScenarioFormState): import("../hooks/useInfosysDemoState").DemoScenario {
+  const pressureState = derivePressureState(
+    f.isOnServe, f.isBreakPoint, f.isGamePoint, f.isGamePointAgainst
+  );
+  return {
+    id: `custom_${Date.now()}`,
+    label: f.player1 && f.player2 ? `${f.player1} vs ${f.player2}` : "Custom scenario",
+    description: `${f.surface} · ${f.round} · ${f.pointScore} · ${pressureState.replace(/_/g, " ")}`,
+    surface: f.surface,
+    round: f.round,
+    player1: f.player1 || "Player",
+    player2: f.player2 || "Opponent",
+    score: f.sets || "0-0",
+    pointScore: f.pointScore,
+    pressureState,
+    isOnServe: f.isOnServe,
+    serveNumber: f.serveNumber,
+    momentum: f.momentum,
+    svcPct: f.svcPct / 100,
+    rtnPct: f.rtnPct / 100,
+    firstSvcPct: f.firstSvcPct / 100,
+    secondSvcPct: f.secondSvcPct / 100,
+    momentumLast5: MOMENTUM_VALUES[f.momentum],
+    isBreakPoint: f.isBreakPoint,
+    isGamePoint: f.isGamePoint,
+    isGamePointAgainst: f.isGamePointAgainst,
+    set: f.set,
+    game: f.game,
+    pointNumber: f.pointNumber,
+  };
+}
+
+function scenarioToForm(s: import("../hooks/useInfosysDemoState").DemoScenario): ScenarioFormState {
+  const mom = s.momentumLast5 >= 0.65 ? "HOT" : s.momentumLast5 <= 0.3 ? "COLD" : "NEUTRAL";
+  return {
+    player1: s.player1,
+    player2: s.player2,
+    surface: s.surface as "Hard" | "Clay" | "Grass",
+    round: s.round,
+    sets: s.score,
+    pointScore: s.pointScore,
+    set: s.set,
+    game: s.game,
+    pointNumber: s.pointNumber,
+    isOnServe: s.isOnServe,
+    serveNumber: s.serveNumber,
+    svcPct: Math.round(s.svcPct * 100),
+    rtnPct: Math.round(s.rtnPct * 100),
+    firstSvcPct: Math.round(s.firstSvcPct * 100),
+    secondSvcPct: Math.round(s.secondSvcPct * 100),
+    momentum: mom,
+    isBreakPoint: s.isBreakPoint,
+    isGamePoint: s.isGamePoint,
+    isGamePointAgainst: s.isGamePointAgainst,
+  };
+}
+
+// Componente input condiviso
+function FieldRow({
+  label: lbl,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/40 font-semibold">
+        {lbl}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function TextInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#F7F8FA] placeholder-[#C9CFDA]/25 focus:outline-none focus:border-[#D4FF3A]/40 transition-colors"
+    />
+  );
+}
+
+function NumInput({
+  value,
+  onChange,
+  min,
+  max,
+  suffix,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  suffix?: string;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#F7F8FA] focus:outline-none focus:border-[#D4FF3A]/40 transition-colors"
+      />
+      {suffix && (
+        <span className="text-[11px] text-[#C9CFDA]/40 shrink-0">{suffix}</span>
+      )}
+    </div>
+  );
+}
+
+function ToggleGroup<T extends string>({
+  options,
+  value,
+  onChange,
+  small,
+}: {
+  options: { v: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  small?: boolean;
+}) {
+  return (
+    <div className="flex gap-1 p-0.5 bg-white/[0.03] rounded-[8px]">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          onClick={() => onChange(o.v)}
+          className={`flex-1 rounded-[6px] text-center transition-all
+            ${small ? "px-1.5 py-1 text-[10px]" : "px-2 py-1.5 text-[11px]"}
+            font-semibold
+            ${value === o.v
+              ? "bg-[#D4FF3A] text-[#0B1220]"
+              : "text-[#C9CFDA]/50 hover:text-[#C9CFDA]/80"
+            }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CheckToggle({
+  checked,
+  onChange,
+  label: lbl,
+  danger,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border text-[11px] font-semibold transition-all w-full
+        ${checked
+          ? danger
+            ? "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]"
+            : "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
+          : "border-white/[0.07] bg-white/[0.02] text-[#C9CFDA]/50 hover:border-white/[0.12]"
+        }`}
+    >
+      <span
+        className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-all
+          ${checked
+            ? danger
+              ? "border-[#EF4444] bg-[#EF4444]"
+              : "border-[#22C55E] bg-[#22C55E]"
+            : "border-white/20"
+          }`}
+      >
+        {checked && (
+          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+            <path d="M1 3.5L3.5 6L8 1" stroke="#0B1220" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      {lbl}
+    </button>
+  );
+}
+
+// Presets rapidi — preset card compatta
+function PresetChip({
+  scenario,
+  active,
+  onClick,
+}: {
+  scenario: import("../hooks/useInfosysDemoState").DemoScenario;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const pressureColor = scenario.pressureState.includes("AGAINST")
+    ? "text-[#EF4444]/70"
+    : scenario.pressureState.includes("FOR")
+    ? "text-[#22C55E]/70"
+    : "text-[#C9CFDA]/40";
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left px-3 py-2 rounded-[10px] border transition-all
+        ${active
+          ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/[0.05]"
+          : "border-white/[0.06] bg-white/[0.01] hover:border-white/[0.12]"
+        }`}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <span className={`text-[11px] font-semibold truncate ${active ? "text-[#F7F8FA]" : "text-[#C9CFDA]/70"}`}>
+          {scenario.label}
+        </span>
+        <span className={`text-[10px] shrink-0 ${pressureColor}`}>
+          {scenario.pointScore}
+        </span>
+      </div>
+      <div className="text-[10px] text-[#C9CFDA]/40 mt-0.5 truncate">
+        {scenario.player1} · {scenario.surface}
+      </div>
+    </button>
+  );
+}
+
+// Configuratore completo
+function ScenarioConfigurator({
+  form,
+  onChange,
+  onConfirm,
+  presets,
+  activePresetId,
+  onPreset,
+}: {
+  form: ScenarioFormState;
+  onChange: (patch: Partial<ScenarioFormState>) => void;
+  onConfirm: () => void;
+  presets: import("../hooks/useInfosysDemoState").DemoScenario[];
+  activePresetId: string | null;
+  onPreset: (s: import("../hooks/useInfosysDemoState").DemoScenario) => void;
+}) {
+  const pressureState = derivePressureState(
+    form.isOnServe, form.isBreakPoint, form.isGamePoint, form.isGamePointAgainst
+  );
+
+  const pressureColor = pressureState.includes("AGAINST")
+    ? "border-[#EF4444]/30 bg-[#EF4444]/08 text-[#EF4444]"
+    : pressureState.includes("FOR")
+    ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]"
+    : "border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/50";
+
+  const canConfirm = form.player1.trim().length > 0 && form.player2.trim().length > 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+
+      {/* Presets rapidi */}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
+          Quick presets
+        </span>
+        <div className="flex flex-col gap-1.5">
+          {presets.map((s) => (
+            <PresetChip
+              key={s.id}
+              scenario={s}
+              active={activePresetId === s.id}
+              onClick={() => onPreset(s)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-white/[0.06]" />
+
+      {/* Giocatori */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
+          Players
+        </span>
+        <FieldRow label="Server / Focus player">
+          <TextInput
+            value={form.player1}
+            onChange={(v) => onChange({ player1: v })}
+            placeholder="e.g. Sinner J."
+          />
+        </FieldRow>
+        <FieldRow label="Opponent">
+          <TextInput
+            value={form.player2}
+            onChange={(v) => onChange({ player2: v })}
+            placeholder="e.g. Alcaraz C."
+          />
+        </FieldRow>
+      </div>
+
+      <div className="border-t border-white/[0.06]" />
+
+      {/* Match context */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
+          Match context
+        </span>
+        <FieldRow label="Surface">
+          <ToggleGroup
+            options={[
+              { v: "Hard" as const, label: "Hard" },
+              { v: "Clay" as const, label: "Clay" },
+              { v: "Grass" as const, label: "Grass" },
+            ]}
+            value={form.surface}
+            onChange={(v) => onChange({ surface: v })}
+          />
+        </FieldRow>
+        <div className="grid grid-cols-2 gap-2">
+          <FieldRow label="Round">
+            <TextInput
+              value={form.round}
+              onChange={(v) => onChange({ round: v })}
+              placeholder="QF, SF, F…"
+            />
+          </FieldRow>
+          <FieldRow label="Score (sets)">
+            <TextInput
+              value={form.sets}
+              onChange={(v) => onChange({ sets: v })}
+              placeholder="6-4, 3-5"
+            />
+          </FieldRow>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <FieldRow label="Set">
+            <NumInput value={form.set} onChange={(v) => onChange({ set: v })} min={1} max={5} />
+          </FieldRow>
+          <FieldRow label="Game">
+            <NumInput value={form.game} onChange={(v) => onChange({ game: v })} min={1} max={13} />
+          </FieldRow>
+          <FieldRow label="Point #">
+            <NumInput value={form.pointNumber} onChange={(v) => onChange({ pointNumber: v })} min={1} />
+          </FieldRow>
+        </div>
+      </div>
+
+      <div className="border-t border-white/[0.06]" />
+
+      {/* Punto corrente */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
+          Current point
+        </span>
+        <FieldRow label="Point score">
+          <TextInput
+            value={form.pointScore}
+            onChange={(v) => onChange({ pointScore: v })}
+            placeholder="30-40, 40-15, 5-6*…"
+          />
+        </FieldRow>
+        <FieldRow label="Serving">
+          <ToggleGroup
+            options={[
+              { v: "true" as unknown as boolean, label: "On serve" },
+              { v: "false" as unknown as boolean, label: "Returning" },
+            ] as unknown as { v: boolean; label: string }[]}
+            value={form.isOnServe}
+            onChange={(v) => onChange({ isOnServe: v as unknown as boolean })}
+          />
+        </FieldRow>
+        {form.isOnServe && (
+          <FieldRow label="Serve number">
+            <ToggleGroup
+              options={[
+                { v: 1 as const, label: "1st" },
+                { v: 2 as const, label: "2nd" },
+              ]}
+              value={form.serveNumber}
+              onChange={(v) => onChange({ serveNumber: v })}
+            />
+          </FieldRow>
+        )}
+        <FieldRow label="Momentum (last 5 pts)">
+          <ToggleGroup
+            options={[
+              { v: "COLD" as const, label: "❄ Cold" },
+              { v: "NEUTRAL" as const, label: "— Neutral" },
+              { v: "HOT" as const, label: "🔥 Hot" },
+            ]}
+            value={form.momentum}
+            onChange={(v) => onChange({ momentum: v })}
+            small
+          />
+        </FieldRow>
+      </div>
+
+      <div className="border-t border-white/[0.06]" />
+
+      {/* Pressure flags */}
+      <div className="flex flex-col gap-2">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
+          Pressure flags
+        </span>
+        <CheckToggle
+          checked={form.isBreakPoint}
+          onChange={(v) => onChange({ isBreakPoint: v })}
+          label="Break point"
+          danger={form.isOnServe}
+        />
+        <CheckToggle
+          checked={form.isGamePoint}
+          onChange={(v) => onChange({ isGamePoint: v })}
+          label="Game point (for)"
+        />
+        <CheckToggle
+          checked={form.isGamePointAgainst}
+          onChange={(v) => onChange({ isGamePointAgainst: v })}
+          label="Game point (against)"
+          danger
+        />
+        {/* Preview pressure state */}
+        <div className={`mt-1 px-2.5 py-1.5 rounded-[8px] border text-[11px] font-semibold text-center ${pressureColor}`}>
+          {pressureLabel(pressureState)}
+        </div>
+      </div>
+
+      <div className="border-t border-white/[0.06]" />
+
+      {/* Stats */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
+          Match stats (%)
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          <FieldRow label="Svc pts won">
+            <NumInput value={form.svcPct} onChange={(v) => onChange({ svcPct: v })} min={0} max={100} suffix="%" />
+          </FieldRow>
+          <FieldRow label="Rtn pts won">
+            <NumInput value={form.rtnPct} onChange={(v) => onChange({ rtnPct: v })} min={0} max={100} suffix="%" />
+          </FieldRow>
+          <FieldRow label="1st srv won">
+            <NumInput value={form.firstSvcPct} onChange={(v) => onChange({ firstSvcPct: v })} min={0} max={100} suffix="%" />
+          </FieldRow>
+          <FieldRow label="2nd srv won">
+            <NumInput value={form.secondSvcPct} onChange={(v) => onChange({ secondSvcPct: v })} min={0} max={100} suffix="%" />
+          </FieldRow>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <button
+        onClick={onConfirm}
+        disabled={!canConfirm}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] bg-[#D4FF3A] text-[#0B1220] text-[12px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.2)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
+      >
+        <ArrowRightIcon size={13} />
+        {canConfirm ? "Set scenario" : "Enter both player names"}
+      </button>
+    </div>
+  );
+}
+
 // ─── PAGINA PRINCIPALE ───────────────────────────────────────────────────────
 
 export const InfosysDemoPage: React.FC = () => {
@@ -836,6 +1380,7 @@ export const InfosysDemoPage: React.FC = () => {
     backendStatus,
     loading,
     briefCopied,
+    scenarios,
     selectScenario,
     calculatePrediction,
     selectPattern,
@@ -846,6 +1391,30 @@ export const InfosysDemoPage: React.FC = () => {
     setOutputMode,
     resetDemo,
   } = state;
+
+  // Form state per il configuratore scenario
+  const [form, setForm] = useState<ScenarioFormState>(DEFAULT_FORM);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+
+  const handleFormChange = useCallback((patch: Partial<ScenarioFormState>) => {
+    setForm((f) => ({ ...f, ...patch }));
+    setActivePresetId(null);
+  }, []);
+
+  const handlePreset = useCallback((s: typeof scenarios[0]) => {
+    setForm(scenarioToForm(s));
+    setActivePresetId(s.id);
+  }, [scenarios]);
+
+  const handleConfirmScenario = useCallback(() => {
+    selectScenario(formToScenario(form));
+  }, [form, selectScenario]);
+
+  const handleReset = useCallback(() => {
+    resetDemo();
+    setForm(DEFAULT_FORM);
+    setActivePresetId(null);
+  }, [resetDemo]);
 
   const stepIndex = STEP_INDEX[currentStep];
 
@@ -948,7 +1517,7 @@ export const InfosysDemoPage: React.FC = () => {
           </div>
           {/* Right: reset */}
           <button
-            onClick={resetDemo}
+            onClick={handleReset}
             className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-white/[0.15] hover:text-[#F7F8FA] transition-all"
           >
             <RefreshIcon size={12} />
@@ -970,87 +1539,47 @@ export const InfosysDemoPage: React.FC = () => {
 
         {/* ── LEFT RAIL ────────────────────────────────────────── */}
         <div className="flex flex-col gap-4">
-
-          {/* Scenario selector */}
           <div className={card}>
-            <div className={label}>Scenario</div>
-            <div className="flex flex-col gap-2">
-              {DEMO_SCENARIOS.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => selectScenario(s)}
-                  className={`w-full text-left rounded-[12px] border p-3 transition-all
-                    ${selectedScenario?.id === s.id
-                      ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/[0.05]"
-                      : "border-white/[0.06] bg-white/[0.01] hover:border-white/[0.12] hover:bg-white/[0.03]"
-                    }`}
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <span className={`text-[12px] font-semibold ${selectedScenario?.id === s.id ? "text-[#F7F8FA]" : "text-[#C9CFDA]/80"}`}>
-                      {s.label}
-                    </span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full border shrink-0 ${
-                      s.pressureState.includes("AGAINST")
-                        ? "border-[#EF4444]/30 text-[#EF4444]/70"
-                        : s.pressureState.includes("FOR")
-                        ? "border-[#22C55E]/30 text-[#22C55E]/70"
-                        : "border-white/10 text-[#C9CFDA]/40"
-                    }`}>
-                      {s.surface}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-[#C9CFDA]/50 mt-1 leading-snug">
-                    {s.description}
-                  </p>
-                </button>
-              ))}
-            </div>
+            <ScenarioConfigurator
+              form={form}
+              onChange={handleFormChange}
+              onConfirm={handleConfirmScenario}
+              presets={scenarios}
+              activePresetId={activePresetId}
+              onPreset={handlePreset}
+            />
           </div>
 
-          {/* Match context (visible when scenario selected) */}
+          {/* Match context summary — visibile dopo conferma */}
           {selectedScenario && (
             <div className={cardSm}>
-              <div className={label}>Match context</div>
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-[13px] font-semibold text-[#F7F8FA]">
-                    {selectedScenario.player1}
-                  </span>
-                  <span className="font-head text-[13px] font-bold text-[#D4FF3A]">
-                    {selectedScenario.score.split(",")[0]?.trim()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-baseline">
-                  <span className="text-[12px] text-[#C9CFDA]/70">
-                    vs {selectedScenario.player2}
-                  </span>
-                  <span className="font-head text-[12px] font-bold text-[#C9CFDA]/60">
-                    {selectedScenario.score.split(",").slice(1).join(",").trim()}
-                  </span>
-                </div>
-                <div className="mt-1 pt-2 border-t border-white/[0.06] flex flex-wrap gap-1.5">
-                  <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}>
-                    {selectedScenario.surface}
-                  </span>
-                  <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}>
-                    {selectedScenario.round}
-                  </span>
-                  <span
-                    className={`${pill} text-[10px] ${
-                      selectedScenario.pressureState.includes("AGAINST")
-                        ? "border-[#EF4444]/30 bg-[#EF4444]/08 text-[#EF4444]/80"
-                        : selectedScenario.pressureState.includes("FOR")
-                        ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]/80"
-                        : "border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60"
-                    }`}
-                  >
-                    {selectedScenario.pointScore}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between">
+                <div className={label}>Scenario confirmed</div>
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#22C55E]">
+                  <CheckIcon size={10} /> Ready
+                </span>
               </div>
-
-              {/* Quick stats */}
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[12px] font-semibold text-[#F7F8FA]">{selectedScenario.player1}</span>
+                  <span className="font-head text-[12px] font-bold text-[#D4FF3A]">{selectedScenario.pointScore}</span>
+                </div>
+                <span className="text-[11px] text-[#C9CFDA]/60">vs {selectedScenario.player2}</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}>{selectedScenario.surface}</span>
+                <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}>{selectedScenario.round}</span>
+                <span className={`${pill} text-[10px] ${
+                  selectedScenario.pressureState.includes("AGAINST")
+                    ? "border-[#EF4444]/30 bg-[#EF4444]/08 text-[#EF4444]/80"
+                    : selectedScenario.pressureState.includes("FOR")
+                    ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]/80"
+                    : "border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60"
+                }`}>
+                  {pressureLabel(selectedScenario.pressureState)}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 pt-1">
                 {[
                   { l: "1st srv", v: Math.round(selectedScenario.firstSvcPct * 100) + "%" },
                   { l: "2nd srv", v: Math.round(selectedScenario.secondSvcPct * 100) + "%" },
@@ -1058,7 +1587,7 @@ export const InfosysDemoPage: React.FC = () => {
                   { l: "Rtn pts", v: Math.round(selectedScenario.rtnPct * 100) + "%" },
                 ].map((s) => (
                   <div key={s.l} className="rounded-[8px] bg-white/[0.03] p-2 text-center">
-                    <div className="font-head text-[13px] font-bold text-[#F7F8FA]">{s.v}</div>
+                    <div className="font-head text-[12px] font-bold text-[#F7F8FA]">{s.v}</div>
                     <div className={`${label} mt-0.5`}>{s.l}</div>
                   </div>
                 ))}
