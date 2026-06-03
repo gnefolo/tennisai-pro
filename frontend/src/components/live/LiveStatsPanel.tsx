@@ -32,6 +32,7 @@ type StatCardProps = {
     textClass: string;
     description: string;
     onChange: (value: number) => void;
+    step?: number;
 };
 
 // ─── DESIGN TOKENS (sostituiscono le costanti hardcoded slate-*) ─────────────
@@ -61,25 +62,20 @@ function StatCard({
     textClass,
     description,
     onChange,
+    step = 5,
 }: StatCardProps) {
     const normalized = ((clamp(value, min, max) - min) / (max - min)) * 100;
 
     return (
         <div className="rounded-[var(--r-md)] border border-white/[0.06] bg-white/[0.03] p-4 lg:p-5">
 
-            {/* Header: label + valore numerico */}
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-fog/50 font-semibold">
-                        {shortLabel}
-                    </div>
-                    <div className="mt-1 font-head text-sm font-semibold text-baseline">
-                        {label}
-                    </div>
+            {/* Header: solo label — il valore numerico vive nello stepper */}
+            <div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-fog/50 font-semibold">
+                    {shortLabel}
                 </div>
-                {/* Valore: usa textClass passato dal parent — invariato */}
-                <div className={`font-head text-2xl font-bold tabular-nums ${textClass}`}>
-                    {value.toFixed(0)}%
+                <div className="mt-1 font-head text-sm font-semibold text-baseline">
+                    {label}
                 </div>
             </div>
 
@@ -104,16 +100,27 @@ function StatCard({
                 {description}
             </div>
 
-            {/* Slider — onChange invariato, accent aggiornato al DS */}
-            <div className="mt-4">
-                <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    value={value}
-                    onChange={(e) => onChange(Number(e.target.value) || 0)}
-                    className="w-full accent-ace-lime cursor-pointer"
-                />
+            {/* Stepper — ottimizzato per tocco su tablet/smartphone */}
+            <div className="mt-4 flex items-center gap-3">
+                <button
+                    onClick={() => onChange(clamp(value - step, min, max))}
+                    aria-label={`Diminuisci ${shortLabel}`}
+                    className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl border border-white/[0.08] bg-white/[0.03] text-2xl font-bold text-fog hover:bg-white/[0.08] hover:border-white/20 active:scale-95 transition-all select-none"
+                >
+                    −
+                </button>
+                <div className="flex-1 text-center">
+                    <span className={`font-head text-3xl font-bold tabular-nums ${textClass}`}>
+                        {value.toFixed(0)}%
+                    </span>
+                </div>
+                <button
+                    onClick={() => onChange(clamp(value + step, min, max))}
+                    aria-label={`Aumenta ${shortLabel}`}
+                    className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl border border-white/[0.08] bg-white/[0.03] text-2xl font-bold text-fog hover:bg-white/[0.08] hover:border-white/20 active:scale-95 transition-all select-none"
+                >
+                    +
+                </button>
             </div>
 
         </div>
@@ -315,16 +322,27 @@ export const LiveStatsPanel: React.FC<LiveStatsPanelProps> = ({
                     i cambi di flusso in tempo reale.
                 </div>
 
-                {/* Slider momentum — onChange invariato */}
-                <div className="mt-4">
-                    <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={momentumLast5}
-                        onChange={(e) => onMomentumLast5Change(Number(e.target.value) || 0)}
-                        className="w-full accent-ace-lime cursor-pointer"
-                    />
+                {/* Stepper momentum — ottimizzato per tocco su tablet */}
+                <div className="mt-4 flex items-center gap-3">
+                    <button
+                        onClick={() => onMomentumLast5Change(clamp(momentumLast5 - 10, 0, 100))}
+                        aria-label="Diminuisci momentum"
+                        className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl border border-white/[0.08] bg-white/[0.03] text-2xl font-bold text-fog hover:bg-white/[0.08] hover:border-white/20 active:scale-95 transition-all select-none"
+                    >
+                        −
+                    </button>
+                    <div className="flex-1 text-center">
+                        <span className="font-head text-3xl font-bold tabular-nums text-clay-amber">
+                            {momentumLast5.toFixed(0)}%
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => onMomentumLast5Change(clamp(momentumLast5 + 10, 0, 100))}
+                        aria-label="Aumenta momentum"
+                        className="flex-shrink-0 flex items-center justify-center w-14 h-14 rounded-2xl border border-white/[0.08] bg-white/[0.03] text-2xl font-bold text-fog hover:bg-white/[0.08] hover:border-white/20 active:scale-95 transition-all select-none"
+                    >
+                        +
+                    </button>
                 </div>
 
             </div>

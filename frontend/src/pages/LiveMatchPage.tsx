@@ -33,6 +33,12 @@ import RecordedPointsPanel from "../components/live/RecordedPointsPanel";
 import WinProbabilityChart from "../components/live/WinProbabilityChart";
 import PatternDistributionPanel from "../components/live/PatternDistributionPanel";
 import { DownloadIcon, ArrowRightIcon } from "../components/ui/icons";
+// Keep-awake: mantiene lo schermo acceso durante il match (solo su Android/iOS)
+let keepAwakePlugin: { keepAwake: () => Promise<void>; allowSleep: () => Promise<void> } | null = null;
+import("@capacitor-community/keep-awake").then(m => { keepAwakePlugin = m.KeepAwake; }).catch(() => {});
+import CourtModeOverlay from "../components/live/CourtModeOverlay";
+import ScoreEditModal from "../components/live/ScoreEditModal";
+import ShareModal from "../components/live/ShareModal";
 
 // ── Costanti API e localStorage (invariate) ──────────────────────────────────
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
@@ -119,6 +125,11 @@ export const LiveMatchPage: React.FC = () => {
   const [recordedPoints, setRecordedPoints] = useState<RecordedPoint[]>([]);
   const [isMatchOver, setIsMatchOver] = useState<boolean>(false);
   const [matchWinner, setMatchWinner] = useState<"me" | "opponent" | null>(null);
+  const [isCourtMode, setIsCourtMode] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [isScoreEditOpen, setIsScoreEditOpen] = useState<boolean>(false);
+  const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
+  const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
 
   const totalGamesInSet = gamesMe + gamesOpp;
   const isServerSwapped = totalGamesInSet % 2 !== 0;
@@ -146,6 +157,25 @@ export const LiveMatchPage: React.FC = () => {
   const [scorePulseKey, setScorePulseKey] = useState<number>(0);
   useEffect(() => { setScorePulseKey((k) => k + 1); },
     [setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp]);
+
+  // ── Keep-awake: attivo quando il match è in corso ────────────────────────
+  useEffect(() => {
+    if (!isSettingUp && !isMatchOver) {
+      keepAwakePlugin?.keepAwake().catch(() => {});
+    } else {
+      keepAwakePlugin?.allowSleep().catch(() => {});
+    }
+    return () => { keepAwakePlugin?.allowSleep().catch(() => {}); };
+  }, [isSettingUp, isMatchOver]);
+
+  // ── Network status — graceful offline degradation ────────────────────────
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
+  }, []);
 
   // ── localStorage load (invariato) ─────────────────────────────────────────
   useEffect(() => {
@@ -327,6 +357,40 @@ export const LiveMatchPage: React.FC = () => {
     if (!macroPattern) { setError("Seleziona il tipo di punto."); return; }
     if (!finishType) { setError("Seleziona come è finito il punto."); return; }
     setError(null); setLoading(true); setPrediction(null); setTaggedPrediction(null);
+
+    // ── Offline: registra punto localmente senza AI ───────────────────────────
+    if (!navigator.onLine) {
+      const tag = buildTagPayload();
+      const rallyCount = macroToRallyCount(macroPattern);
+      const isPointWonVal = pendingWinner === "me" ? 1 : 0;
+      const rec: RecordedPoint = {
+        id: `pt_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+        set: setNumber, game: gameNumber, pointNumber,
+        isOnServe: onServe === "me" ? 1 : 0, serveNumber,
+        serveDirection, serveQuality: tag.serve_quality ?? null,
+        returnType: tag.return_type ?? null, rallyBucket: tag.rally_bucket ?? null,
+        rallyPhase: tag.rally_phase ?? null, keyEvent: tag.key_event ?? null,
+        finishType: tag.finish_type ?? null, finishShot: tag.finish_shot ?? null,
+        macroPattern, rallyCount,
+        pctServicePointsWon: Math.max(0, Math.min(1, svcPct / 100)),
+        pctReturnPointsWon: Math.max(0, Math.min(1, rtnPct / 100)),
+        pctFirstServePointsWon: Math.max(0, Math.min(1, firstPct / 100)),
+        pctSecondServePointsWon: Math.max(0, Math.min(1, secondPct / 100)),
+        momentumLast5: Math.max(0, Math.min(1, momentumLast5 / 100)),
+        isBreakPoint: isBreakPoint ? 1 : 0, isGamePoint: isGamePoint ? 1 : 0, isGamePointAgainst: isGamePointAgainst ? 1 : 0,
+        isPointWon: isPointWonVal,
+        setScoreMe: setsMe, setScoreOpp: setsOpp, gameScoreMe: gamesMe, gameScoreOpp: gamesOpp,
+        pointScoreMe, pointScoreOpp, timestamp: new Date().toISOString(),
+      };
+      setRecordedPoints((prev) => [...prev, rec]);
+      handlePointWonInternal(pendingWinner);
+      setPendingWinner(null); setMacroPattern(null); setFinishType(null);
+      setServeNumber(1); setServeDirection(null); setServeQuality(null);
+      setReturnType(null); setRallyPhase(null); setKeyEvent("NONE"); setFinishShot(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       const tag = buildTagPayload();
       const rallyCount = macroToRallyCount(macroPattern);
@@ -373,6 +437,30 @@ export const LiveMatchPage: React.FC = () => {
       };
       setRecordedPoints((prev) => [...prev, rec]);
       handlePointWonInternal(pendingWinner);
+
+      // ── Broadcast live agli spettatori via WebSocket ────────────────────────
+      if (currentSessionId) {
+        fetch(`${API_BASE}/api/live/broadcast/${currentSessionId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "POINT",
+            state: {
+              playerName: activePlayer?.name || "Player",
+              opponentName: opponentName.trim() || "Opponent",
+              setsMe, setsOpp, gamesMe, gamesOpp,
+              pointScoreMe, pointScoreOpp, setNumber,
+              isPlayerOnServe: onServe === "me",
+              tacticalCall: data.tactical_v3?.tactical_call_v3 ?? data.tactical_call ?? "",
+              momentumState: data.momentum_state ?? "",
+              winProbability: data.point_win_probability,
+              patternName: data.pattern_fused?.pattern_name ?? "",
+              pointNumber,
+            },
+          }),
+        }).catch(() => { /* non-blocking */ });
+      }
+
       setPendingWinner(null); setMacroPattern(null); setFinishType(null);
       setServeNumber(1); setServeDirection(null); setServeQuality(null);
       setReturnType(null); setRallyPhase(null); setKeyEvent("NONE"); setFinishShot(null);
@@ -464,6 +552,50 @@ export const LiveMatchPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleGeneratePDF = async () => {
+    if (recordedPoints.length === 0) { setError("Non ci sono punti registrati da esportare."); return; }
+    setError(null); setIsExportingPDF(true);
+    try {
+      const payload = {
+        player_name: activePlayer?.name || "Player",
+        opponent_name: opponentName.trim() || "Opponent",
+        tournament: currentSession?.tournament || tournamentName || "Match",
+        surface, match_type: matchType,
+        date: new Date().toISOString().split("T")[0],
+        sets_me: setsMe, sets_opp: setsOpp,
+        games_me: gamesMe, games_opp: gamesOpp,
+        total_points: recordedPoints.length,
+        svc_pct: svcPct, rtn_pct: rtnPct,
+        first_pct: firstPct, second_pct: secondPct,
+        recorded_points: recordedPoints.map(pt => ({
+          set: pt.set, game: pt.game, pointNumber: pt.pointNumber,
+          isPointWon: pt.isPointWon, macroPattern: pt.macroPattern ?? null,
+          finishType: pt.finishType ?? null, serveDirection: pt.serveDirection ?? null,
+          serveQuality: pt.serveQuality ?? null, isOnServe: pt.isOnServe,
+          modelPointWinProbability: pt.modelPointWinProbability ?? null,
+          tacticalCall: pt.tacticalCall ?? null,
+        })),
+      };
+      const res = await fetch(`${API_BASE}/api/session/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
+      const pname = (activePlayer?.name || "Player").replace(/\s+/g, "_");
+      const oname = opponentName.trim().replace(/\s+/g, "_") || "Opponent";
+      a.href = url; a.download = `report_${pname}_vs_${oname}_${ts}.pdf`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError("Errore nella generazione del PDF. Verifica la connessione al backend.");
+    } finally { setIsExportingPDF(false); }
+  };
+
   const handleResetMatch = () => {
     const sessionIdToReset = currentSessionId;
     setCurrentSessionId(null);
@@ -520,6 +652,76 @@ export const LiveMatchPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-4 h-full">
 
+      {/* ── Banner Offline ── */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2.5 bg-clay-amber/95 backdrop-blur-sm px-4 py-2.5 text-court-night text-[12px] font-bold"
+             style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top, 0px))" }}>
+          <span className="w-2 h-2 rounded-full bg-court-night/50 animate-pulse" />
+          Modalità offline — punti registrati localmente, analisi AI non disponibile
+        </div>
+      )}
+
+      {/* ── Share Modal (Spectator) ── */}
+      {isShareOpen && currentSessionId && (
+        <ShareModal sessionId={currentSessionId} onClose={() => setIsShareOpen(false)} />
+      )}
+
+      {/* ── Score Quick-Edit Modal ── */}
+      {isScoreEditOpen && (
+        <ScoreEditModal
+          setsMe={setsMe} setsOpp={setsOpp}
+          gamesMe={gamesMe} gamesOpp={gamesOpp}
+          pointScoreMe={pointScoreMe} pointScoreOpp={pointScoreOpp}
+          playerName={activePlayer?.name}
+          opponentName={opponentName || "Avversario"}
+          onSave={({ setsMe: sm, setsOpp: so, gamesMe: gm, gamesOpp: go, pointScoreMe: pm, pointScoreOpp: po }) => {
+            setSetsMe(sm); setSetsOpp(so);
+            setGamesMe(gm); setGamesOpp(go);
+            setPointScoreMe(pm); setPointScoreOpp(po);
+            setIsScoreEditOpen(false);
+          }}
+          onClose={() => setIsScoreEditOpen(false)}
+        />
+      )}
+
+      {/* ── Court Mode Overlay ── */}
+      {isCourtMode && (
+        <CourtModeOverlay
+          playerName={activePlayer?.name}
+          opponentName={opponentName || "Avversario"}
+          setsMe={setsMe} setsOpp={setsOpp}
+          gamesMe={gamesMe} gamesOpp={gamesOpp}
+          pointScoreMe={pointScoreMe} pointScoreOpp={pointScoreOpp}
+          setNumber={setNumber}
+          isPlayerOnServe={onServe === "me"}
+          pendingWinner={pendingWinner}
+          serveNumber={serveNumber}
+          serveDirection={serveDirection}
+          serveQuality={serveQuality}
+          macroPattern={macroPattern}
+          returnType={returnType}
+          rallyPhase={rallyPhase}
+          keyEvent={keyEvent}
+          finishType={finishType}
+          finishShot={finishShot}
+          loading={loading}
+          canUndo={recordedPoints.length > 0}
+          onPendingWinnerChange={setPendingWinner}
+          onServeNumberChange={setServeNumber}
+          onServeDirectionChange={setServeDirection}
+          onServeQualityChange={setServeQuality}
+          onMacroPatternChange={setMacroPattern}
+          onReturnTypeChange={setReturnType}
+          onRallyPhaseChange={setRallyPhase}
+          onKeyEventChange={setKeyEvent}
+          onFinishTypeChange={setFinishType}
+          onFinishShotChange={setFinishShot}
+          onRegister={handleRegisterAndAnalyze}
+          onUndo={handleUndoLastPoint}
+          onClose={() => setIsCourtMode(false)}
+        />
+      )}
+
       {/* ── Wrapper hero card — court-night con elevation */}
       <div className="bg-court-night/95 border border-white/[0.07] rounded-[24px] p-6 lg:p-8 flex flex-col gap-6 relative shadow-[var(--e-3)]">
         <LiveMatchHero
@@ -542,6 +744,7 @@ export const LiveMatchPage: React.FC = () => {
           scorePulseKey={scorePulseKey}
           onOpenSettings={() => setIsSettingUp(true)}
           onResetMatch={handleResetMatch}
+          onOpenScoreEdit={() => setIsScoreEditOpen(true)}
           isMatchOver={isMatchOver}
         />
       </div>
@@ -551,7 +754,7 @@ export const LiveMatchPage: React.FC = () => {
         recentSequenceInsight={recentSequenceInsight}
       />
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4">
 
         {/* ── Colonna sinistra ── */}
         <div className="flex flex-col gap-4">
@@ -580,11 +783,19 @@ export const LiveMatchPage: React.FC = () => {
                 {/* CTA */}
                 <div className="flex flex-wrap justify-center gap-3 mt-6">
                   <button
-                    onClick={handleExportCsv}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-[var(--r-pill)] bg-ace-lime text-court-night text-sm font-bold tracking-wide hover:bg-ace-lime-hover hover:scale-[1.02] transition-all shadow-[var(--lime-glow)]"
+                    onClick={handleGeneratePDF}
+                    disabled={isExportingPDF}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-[var(--r-pill)] bg-ace-lime text-court-night text-sm font-bold tracking-wide hover:bg-ace-lime-hover hover:scale-[1.02] transition-all shadow-[var(--lime-glow)] disabled:opacity-50"
                   >
                     <DownloadIcon size={16} />
-                    Esporta CSV
+                    {isExportingPDF ? "Generazione..." : "Report PDF"}
+                  </button>
+                  <button
+                    onClick={handleExportCsv}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-[var(--r-pill)] border border-white/10 bg-white/[0.04] text-fog text-sm font-semibold hover:border-white/20 transition-all"
+                  >
+                    <DownloadIcon size={16} />
+                    CSV Raw
                   </button>
                   <button
                     onClick={handleResetMatch}
@@ -648,6 +859,35 @@ export const LiveMatchPage: React.FC = () => {
         </div>
 
       </div>
+      {/* ── FAB cluster — Court Mode + Condividi ── */}
+      {!isMatchOver && (
+        <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-30 flex flex-col gap-2 items-end">
+          {/* Condividi / Spectator */}
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-info/40 bg-info/10 px-4 py-3 text-info shadow-[0_4px_20px_rgba(59,130,246,0.15)] hover:bg-info/20 hover:border-info/60 active:scale-95 transition-all backdrop-blur-sm"
+            aria-label="Condividi match"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Share</span>
+          </button>
+          {/* Court Mode */}
+          <button
+            onClick={() => setIsCourtMode(true)}
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-ace-lime/40 bg-ace-lime/10 px-4 py-3 text-ace-lime shadow-[0_4px_24px_rgba(212,255,58,0.20)] hover:bg-ace-lime/20 hover:border-ace-lime/60 active:scale-95 transition-all backdrop-blur-sm"
+            aria-label="Attiva Court Mode"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
+            </svg>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Court</span>
+          </button>
+        </div>
+      )}
+
     </div >
   );
 };

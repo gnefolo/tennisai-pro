@@ -4,7 +4,7 @@
 //     linePath, areaPath, yTicks, formatPct, tutti i path SVG e le coordinate —
 //     IDENTICI all'originale. Modificati: shell, className, colori SVG fill/stroke.
 
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import type { RecordedPoint } from "./liveTypes";
 
 // ─── TIPI (invariati) ────────────────────────────────────────────────────────
@@ -30,6 +30,22 @@ function formatPct(value: number): string {
 const WinProbabilityChart: React.FC<WinProbabilityChartProps> = ({
     recordedPoints,
 }) => {
+    // ── ResizeObserver per SVG responsivo ─────────────────────────────────────
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [svgWidth, setSvgWidth] = useState(800);
+
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(entries => {
+            const w = entries[0]?.contentRect.width;
+            if (w && w > 0) setSvgWidth(Math.round(w));
+        });
+        ro.observe(el);
+        setSvgWidth(el.clientWidth || 800);
+        return () => ro.disconnect();
+    }, []);
+
     // ── useMemo invariato — filtra e mappa i punti del modello XGBoost ─────────
     const chartData = useMemo(() => {
         return recordedPoints
@@ -53,8 +69,8 @@ const WinProbabilityChart: React.FC<WinProbabilityChartProps> = ({
             ? chartData.reduce((acc, d) => acc + d.probability, 0) / chartData.length
             : null;
 
-    // ── Geometria SVG (invariata — non toccare) ────────────────────────────────
-    const width = 1000;
+    // ── Geometria SVG — width dinamica via ResizeObserver ─────────────────────
+    const width = svgWidth;
     const height = 260;
     const paddingLeft = 48;
     const paddingRight = 20;
@@ -163,13 +179,12 @@ const WinProbabilityChart: React.FC<WinProbabilityChartProps> = ({
                             </div>
                         </div>
 
-                        {/* ── SVG Chart ────────────────────────────────────────────────── */}
-                        {/* ATTENZIONE: non modificare nulla dentro <svg>
-                salvo i valori rgba() dei colori — geometria invariata */}
-                        <div className="w-full overflow-x-auto">
+                        {/* ── SVG Chart — responsivo via ResizeObserver ────────────────── */}
+                        <div ref={containerRef} className="w-full">
                             <svg
                                 viewBox={`0 0 ${width} ${height}`}
-                                className="min-w-[780px] w-full h-[260px]"
+                                className="w-full"
+                                style={{ height: 260 }}
                                 role="img"
                                 aria-label="Live win probability chart"
                             >

@@ -258,4 +258,323 @@
         border-radius: var(--r-pill);
         transition: width var(--dur-slow) var(--ease);
     }
+
+    /* ─── WIZARD MODAL ────────────────────────────────────────── */
+
+    /* Backdrop: glassmorphism overlay */
+    .wizard-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(11, 18, 32, 0.82);
+        backdrop-filter: blur(20px) saturate(1.2);
+        -webkit-backdrop-filter: blur(20px) saturate(1.2);
+        animation: wizard-backdrop-in var(--dur-med) var(--ease) both;
+    }
+
+    .wizard-backdrop.closing {
+        animation: wizard-backdrop-out var(--dur-fast) var(--ease) both;
+    }
+
+    /* Container: modal card */
+    .wizard-container {
+        position: fixed;
+        inset: 0;
+        z-index: 101;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        pointer-events: none;
+    }
+
+    .wizard-card {
+        pointer-events: auto;
+        width: 100%;
+        max-width: 720px;
+        max-height: calc(100dvh - 32px);
+        display: flex;
+        flex-direction: column;
+        background: rgba(15, 25, 41, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        box-shadow:
+            0 24px 80px rgba(0, 0, 0, 0.5),
+            0 0 0 1px rgba(212, 255, 58, 0.06) inset;
+        overflow: hidden;
+        animation: wizard-card-in var(--dur-slow) var(--ease) both;
+    }
+
+    .wizard-backdrop.closing + .wizard-container .wizard-card,
+    .wizard-card.closing {
+        animation: wizard-card-out var(--dur-fast) var(--ease) both;
+    }
+
+    .wizard-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px 0;
+        flex-shrink: 0;
+    }
+
+    .wizard-card-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 20px 24px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+
+    .wizard-card-body::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .wizard-card-body::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .wizard-card-body::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.08);
+        border-radius: 4px;
+    }
+
+    .wizard-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 24px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        flex-shrink: 0;
+    }
+
+    /* Step slide transitions */
+    .wizard-step-wrapper {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .wizard-step {
+        animation: wizard-step-in var(--dur-med) var(--ease) both;
+    }
+
+    .wizard-step-reverse {
+        animation: wizard-step-in-reverse var(--dur-med) var(--ease) both;
+    }
+
+    /* Progress dots */
+    .wizard-progress-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        transition: all var(--dur-med) var(--ease);
+    }
+
+    .wizard-progress-dot.active {
+        width: 24px;
+        border-radius: 4px;
+        background: var(--ace-lime);
+    }
+
+    .wizard-progress-dot.done {
+        background: var(--success);
+    }
+
+    .wizard-progress-dot.pending {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Connector lines between dots */
+    .wizard-progress-line {
+        width: 32px;
+        height: 2px;
+        border-radius: 1px;
+        transition: background var(--dur-med) var(--ease);
+    }
+}
+
+/* ─── KEYFRAMES GENERICI ─────────────────────────────────────── */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ─── OUTDOOR MODE — alta visibilità in campo con luce solare ─── */
+html.outdoor-mode #root {
+    filter: brightness(1.35) contrast(1.25) saturate(1.15);
+}
+
+html.outdoor-mode #root .font-head {
+    -webkit-text-stroke: 0.3px currentColor;
+}
+
+@keyframes courtModeIn {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes toastSlideUp {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.96); }
+    15%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    80%  { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.97); }
+}
+
+/* ─── WIZARD KEYFRAMES ────────────────────────────────────────── */
+
+@keyframes wizard-backdrop-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes wizard-backdrop-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+@keyframes wizard-card-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94) translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes wizard-card-out {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+}
+
+@keyframes wizard-step-in {
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes wizard-step-in-reverse {
+    from {
+        opacity: 0;
+        transform: translateX(-40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes wizard-pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
+}
+
+/* ─── QUICK TAG BAR ───────────────────────────────────────────── */
+
+.quick-tag-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 80;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: rgba(11, 18, 32, 0.92);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.quick-tag-bar.tag-confirm-flash {
+    animation: tag-flash 0.5s var(--ease) both;
+}
+
+.tag-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    background: var(--ace-lime);
+    color: var(--court-night);
+    font-family: var(--ff-head);
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    border: none;
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease);
+    box-shadow: 0 4px 16px rgba(212, 255, 58, 0.3);
+}
+
+.tag-btn-primary:hover:not(:disabled) {
+    background: var(--ace-lime-hover);
+    transform: scale(1.03);
+    box-shadow: 0 6px 24px rgba(212, 255, 58, 0.4);
+}
+
+.tag-btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
+    box-shadow: 0 2px 8px rgba(212, 255, 58, 0.2);
+}
+
+.tag-btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ─── SWING TOAST ─────────────────────────────────────────────── */
+
+.swing-toast {
+    animation: swing-toast-in 0.3s var(--ease) both,
+               swing-toast-out 0.4s var(--ease) 2.5s both;
+}
+
+/* ─── QUICK TAG KEYFRAMES ─────────────────────────────────────── */
+
+@keyframes tag-flash {
+    0%   { border-top-color: var(--success); box-shadow: 0 -4px 20px rgba(34, 197, 94, 0.3); }
+    100% { border-top-color: rgba(255, 255, 255, 0.06); box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4); }
+}
+
+@keyframes swing-toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(12px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+@keyframes swing-toast-out {
+    from {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-8px) scale(0.95);
+    }
 }

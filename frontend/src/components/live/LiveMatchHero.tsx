@@ -35,6 +35,7 @@ interface LiveMatchHeroProps {
     scorePulseKey: number;
     onOpenSettings?: () => void;
     onResetMatch?: () => void;
+    onOpenScoreEdit?: () => void;
     isMatchOver?: boolean;
 }
 
@@ -199,6 +200,7 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
     scorePulseKey,
     onOpenSettings,
     onResetMatch,
+    onOpenScoreEdit,
     isMatchOver = false,
 }) => {
     const meName = cleanName(playerName, "Tu");
@@ -268,6 +270,20 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                     <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Set {setNumber}</span>
                     <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Game {gameNumber}</span>
                     <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Point {pointNumber}</span>
+                    {/* Score quick-edit — visibile solo se non match over */}
+                    {onOpenScoreEdit && !isMatchOver && (
+                        <button
+                            onClick={onOpenScoreEdit}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-clay-amber/30 bg-clay-amber/[0.08] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-clay-amber hover:bg-clay-amber/15 hover:border-clay-amber/50 transition-all"
+                            title="Correggi punteggio"
+                        >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                            Correggi
+                        </button>
+                    )}
                 </div>
             </div>
 
