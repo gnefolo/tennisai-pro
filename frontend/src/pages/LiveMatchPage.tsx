@@ -67,7 +67,11 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
 
 
 // ── COMPONENTE ────────────────────────────────────────────────────────────────
-export const LiveMatchPage: React.FC = () => {
+interface LiveMatchPageProps {
+  onOpenSpinner?: () => void;
+}
+
+export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner }) => {
   // ── Tutto lo state e i handler sono identici all'originale ────────────────
   const [players, setPlayers] = useState<LivePlayer[]>([]);
   const [sessions, setSessions] = useState<LiveMatchSession[]>([]);
@@ -872,6 +876,21 @@ export const LiveMatchPage: React.FC = () => {
       {/* ── FAB cluster — portal per viewport-fixed corretto con outdoor mode ── */}
       {!isMatchOver && createPortal(
         <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-30 flex flex-col gap-2 items-end">
+          {/* Spinner AI Coach */}
+          {onOpenSpinner && (
+            <button
+              onClick={onOpenSpinner}
+              className="flex flex-col items-center gap-1.5 rounded-2xl border border-yellow-400/40 bg-yellow-400/10 px-4 py-3 text-yellow-400 shadow-[0_4px_20px_rgba(250,204,21,0.15)] hover:bg-yellow-400/20 hover:border-yellow-400/60 active:scale-95 transition-all backdrop-blur-sm"
+              aria-label="Apri Spinner AI Coach"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+                <path d="M3.5 8.5 Q8 12 3.5 15.5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                <path d="M20.5 8.5 Q16 12 20.5 15.5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+              </svg>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Spinner</span>
+            </button>
+          )}
           {/* Condividi / Spectator */}
           <button
             onClick={() => setIsShareOpen(true)}
@@ -887,7 +906,7 @@ export const LiveMatchPage: React.FC = () => {
           {/* Court Mode */}
           <button
             onClick={() => setIsCourtMode(true)}
-            className="flex flex-col items-center gap-1.5 rounded-2xl border border-ace-lime/40 bg-ace-lime/10 px-4 py-3 text-ace-lime shadow-[0_4px_24px_rgba(212,255,58,0.20)] hover:bg-ace-lime/20 hover:border-ace-lime/60 active:scale-95 transition-all backdrop-blur-sm"
+            className="flex flex-col items-center gap-1.5 rounded-2xl border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-orange-400 shadow-[0_4px_24px_rgba(249,115,22,0.20)] hover:bg-orange-500/20 hover:border-orange-500/60 active:scale-95 transition-all backdrop-blur-sm"
             aria-label="Attiva Court Mode"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

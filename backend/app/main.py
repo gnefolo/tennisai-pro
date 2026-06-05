@@ -1,9 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import json
+import os
 
 from app.schemas import LiveTaggedPointRequest, LiveTaggedPointResponse
 from app.services.live_service import analyze_live_point
@@ -223,3 +224,60 @@ async def websocket_live(websocket: WebSocket):
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+# ─── Spinner AI Chat ──────────────────────────────────────────────────────────
+
+class SpinnerMessage(BaseModel):
+    role: str
+    content: str
+
+class SpinnerChatRequest(BaseModel):
+    messages: List[SpinnerMessage]
+    match_context: Optional[str] = None
+
+SPINNER_SYSTEM = """Sei Spinner, un coach AI di tennis integrato in TennisAI Pro.
+Sei esperto, diretto e concreto. Parla sempre in italiano.
+Fornisci analisi tattiche, letture del gioco e consigli basati sui dati del match.
+Sii conciso: massimo 3 frasi per risposta. Usa terminologia tennistica professionale.
+Se hai dati del match, fai riferimento a numeri e pattern specifici."""
+
+@app.post("/api/spinner/chat")
+async def spinner_chat(request: SpinnerChatRequest):
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        async def no_key():
+            yield f"data: {json.dumps({'text': 'Configura ANTHROPIC_API_KEY per attivare Spinner.'})}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(no_key(), media_type="text/event-stream")
+
+    try:
+        from anthropic import AsyncAnthropic
+        client = AsyncAnthropic(api_key=api_key)
+
+        system = SPINNER_SYSTEM
+        if request.match_context:
+            system += f"\n\nContesto match corrente:\n{request.match_context}"
+
+        messages = [{"role": m.role, "content": m.content} for m in request.messages]
+
+        async def generate():
+            async with client.messages.stream(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=300,
+                system=system,
+                messages=messages,
+            ) as stream:
+                async for text in stream.text_stream:
+                    yield f"data: {json.dumps({'text': text})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    except Exception as e:
+        async def err():
+            yield f"data: {json.dumps({'text': f'Errore: {str(e)}'})}\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(err(), media_type="text/event-stream")

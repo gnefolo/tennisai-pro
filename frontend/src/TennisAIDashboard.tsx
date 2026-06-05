@@ -9,11 +9,14 @@ import { InfosysDemoPage } from "./pages/InfosysDemoPage";
 import SpectatorPage from "./pages/SpectatorPage";
 import Logo from "./components/ui/Logo";
 import { TacticsIcon, LayersIcon, AIIcon } from "./components/ui/icons";
+import SpinnerFAB from "./components/spinner/SpinnerFAB";
+import SpinnerPanel from "./components/spinner/SpinnerPanel";
 
 type Mode = "live" | "liveArchive" | "infosysDemo";
 
 export const TennisAIDashboard: React.FC = () => {
   const [mode, setMode] = useState<Mode>("live");
+  const [spinnerOpen, setSpinnerOpen] = useState(false);
 
   // ── Spectator mode — se ?spectate=ID nell'URL, mostra la vista sola lettura ──
   const spectateId = new URLSearchParams(window.location.search).get("spectate");
@@ -158,7 +161,7 @@ export const TennisAIDashboard: React.FC = () => {
 
           {/* ── Contenuto ── */}
           {mode === "live" ? (
-            <LiveMatchPage />
+            <LiveMatchPage onOpenSpinner={() => setSpinnerOpen(true)} />
           ) : mode === "liveArchive" ? (
             <LiveArchivePage onOpenLiveSession={() => setMode("live")} />
           ) : (
@@ -167,6 +170,12 @@ export const TennisAIDashboard: React.FC = () => {
 
         </div>
       </div>
+
+      {/* ── Spinner AI Coach — FAB solo su tab non-live (su live è nel gruppo COURT/SHARE) ── */}
+      {mode !== "live" && (
+        <SpinnerFAB onClick={() => setSpinnerOpen(v => !v)} />
+      )}
+      <SpinnerPanel isOpen={spinnerOpen} onClose={() => setSpinnerOpen(false)} mode={mode} />
 
       {/* ── Bottom Navigation Bar — mobile/tablet (lg:hidden) ── */}
       <nav

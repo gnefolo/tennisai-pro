@@ -12,6 +12,10 @@ trap cleanup SIGINT
 # Start Backend
 echo "Starting Backend..."
 cd backend
+if [ -f ".env" ]; then
+  export $(grep -v '^#' .env | xargs)
+  echo "Loaded .env"
+fi
 source .venv/bin/activate
 uvicorn app.main:app --reload &
 BACKEND_PID=$!
