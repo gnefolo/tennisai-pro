@@ -58,7 +58,7 @@ function buildMatchContext(mode: AppMode): string {
   }
 }
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
 export const SpinnerPanel: React.FC<SpinnerPanelProps> = ({ isOpen, onClose, mode }) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -175,10 +175,10 @@ export const SpinnerPanel: React.FC<SpinnerPanelProps> = ({ isOpen, onClose, mod
           bottom-[76px] lg:bottom-6
           w-[320px] lg:w-[360px]
           flex flex-col
-          bg-[#0B1220]/95 backdrop-blur-2xl
-          border border-white/[0.10]
+          bg-[#111827]/98 backdrop-blur-2xl
+          border border-white/[0.18]
           rounded-3xl
-          shadow-[0_8px_48px_rgba(0,0,0,0.7),0_0_0_1px_rgba(250,204,21,0.08)]
+          shadow-[0_8px_48px_rgba(0,0,0,0.85),0_0_0_1px_rgba(250,204,21,0.15)]
           transition-all duration-250 ease-out
           origin-bottom-right
           ${isOpen
