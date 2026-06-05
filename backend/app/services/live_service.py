@@ -17,7 +17,7 @@ def analyze_live_point(payload: Dict[str, Any]) -> Dict[str, Any]:
     row = build_live_row(payload)
     X = build_model_frame(row, WIN_FEATURES)
 
-    prediction, point_win_probability = predict_win_probability(X)
+    prediction, point_win_probability, model_metadata = predict_win_probability(X)
     pattern_data = build_pattern_payload(row, point_win_probability)
 
     fused_pattern = pattern_data["pattern_fused"]
@@ -79,4 +79,5 @@ def analyze_live_point(payload: Dict[str, Any]) -> Dict[str, Any]:
         "risk_level": tactical_payload.get("risk_level"),
 
         "tactical_v3": tactical_v3_payload,
+        "model_metadata": model_metadata,
     }

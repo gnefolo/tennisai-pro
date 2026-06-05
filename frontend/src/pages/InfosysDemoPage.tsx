@@ -1,27 +1,34 @@
 // src/pages/InfosysDemoPage.tsx
 // ATP Tactical Intelligence Demo — Infosys/ATP integration showcase
-// Layout: Header → WorkflowStepper → [Left rail | Center stage | Right rail] → Collapsible bottom
+// v3: Live Loop mode — wizard for setup, inline Quick Tag Bar for courtside tagging
+// Layout: Header → [Live: Hero + Tag Bar] or [Setup: Wizard modal]
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   useInfosysDemoState,
   type DemoStep,
   type PatternAlternative,
-  type RegisteredOutcome,
   type OutputMode,
+  type TaggedPoint,
 } from "../hooks/useInfosysDemoState";
 import {
   TacticsIcon,
   ChartIcon,
   CheckIcon,
   RefreshIcon,
-  DownloadIcon,
   ArrowRightIcon,
   AIIcon,
-  ShareIcon,
-  LayersIcon,
-  CloseIcon,
 } from "../components/ui/icons";
+import { WizardModal } from "../components/ui/WizardModal";
+import {
+  WizardStepScenario,
+  DEFAULT_FORM,
+  formToScenario,
+  scenarioToForm,
+  type ScenarioFormState,
+} from "../components/infosys/WizardStepScenario";
+import { QuickTagBar } from "../components/infosys/QuickTagBar";
+import InfosysMomentumStrip from "../components/infosys/InfosysMomentumStrip";
 
 // ─── COSTANTI DESIGN ─────────────────────────────────────────────────────────
 
@@ -57,86 +64,32 @@ function upliftColor(u: number) {
   return "text-[#C9CFDA]/60";
 }
 
+function probColor(p: number): string {
+  if (p >= 0.65) return "#D4FF3A";
+  if (p >= 0.45) return "#E9A23B";
+  return "#EF4444";
+}
+
+function probGlowBorder(p: number): React.CSSProperties {
+  if (p >= 0.65) return { borderColor: "rgba(212,255,58,0.20)", boxShadow: "0 4px 24px rgba(212,255,58,0.07)" };
+  if (p <= 0.35) return { borderColor: "rgba(239,68,68,0.20)", boxShadow: "0 4px 24px rgba(239,68,68,0.07)" };
+  return {};
+}
+
 function pressureLabel(s: string) {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// ─── STEP DEFINITIONS ────────────────────────────────────────────────────────
+// ─── WIZARD (setup only) ─────────────────────────────────────────────────────
 
-const STEPS: { id: DemoStep; label: string; short: string }[] = [
-  { id: "scenario", label: "Scenario", short: "1" },
-  { id: "predict", label: "Predict", short: "2" },
-  { id: "simulate", label: "Simulate", short: "3" },
-  { id: "register", label: "Register", short: "4" },
-  { id: "explain", label: "Explain", short: "5" },
-  { id: "export", label: "Export", short: "6" },
+const WIZARD_STEPS = [
+  { id: "scenario", label: "Match Setup", short: "Setup" },
 ];
-
-const STEP_INDEX: Record<DemoStep, number> = {
-  scenario: 0,
-  predict: 1,
-  simulate: 2,
-  register: 3,
-  explain: 4,
-  export: 5,
-};
 
 // ─── SUB-COMPONENTS ──────────────────────────────────────────────────────────
 
-/* WorkflowStepper */
-function WorkflowStepper({
-  currentStep,
-  onStepClick,
-}: {
-  currentStep: DemoStep;
-  onStepClick: (s: DemoStep) => void;
-}) {
-  const current = STEP_INDEX[currentStep];
-  return (
-    <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide">
-      {STEPS.map((step, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <React.Fragment key={step.id}>
-            <button
-              onClick={() => done && onStepClick(step.id)}
-              disabled={!done && !active}
-              aria-current={active ? "step" : undefined}
-              className={`flex items-center gap-2 px-3 py-2 rounded-[10px] text-[12px] font-semibold transition-all shrink-0
-                ${active
-                  ? "bg-[#D4FF3A] text-[#0B1220]"
-                  : done
-                  ? "bg-white/[0.06] text-[#F7F8FA] hover:bg-white/[0.10] cursor-pointer"
-                  : "bg-white/[0.02] text-[#C9CFDA]/30 cursor-not-allowed"
-                }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0
-                  ${active ? "bg-[#0B1220]/20" : done ? "bg-[#22C55E]/20 text-[#22C55E]" : "bg-white/[0.06]"}`}
-              >
-                {done ? <CheckIcon size={11} /> : step.short}
-              </span>
-              <span className="hidden sm:inline">{step.label}</span>
-            </button>
-            {i < STEPS.length - 1 && (
-              <div
-                className={`w-6 h-px shrink-0 ${i < current ? "bg-[#22C55E]/40" : "bg-white/[0.08]"}`}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
 /* BackendStatusBadge */
-function BackendStatusBadge({
-  status,
-}: {
-  status: "unknown" | "online" | "offline";
-}) {
+function BackendStatusBadge({ status }: { status: "unknown" | "online" | "offline" }) {
   if (status === "online")
     return (
       <span className={`${pill} border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]`}>
@@ -159,44 +112,8 @@ function BackendStatusBadge({
   );
 }
 
-/* CollapsiblePanel */
-function CollapsiblePanel({
-  title,
-  children,
-  defaultOpen = false,
-}: {
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="border border-white/[0.07] rounded-[16px] overflow-hidden">
-      <button
-        className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span className={label}>{title}</span>
-        <span
-          className={`text-[#C9CFDA]/40 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        >
-          ▾
-        </span>
-      </button>
-      {open && <div className="p-4 border-t border-white/[0.06]">{children}</div>}
-    </div>
-  );
-}
-
 /* OutputModeSwitch */
-function OutputModeSwitch({
-  mode,
-  onChange,
-}: {
-  mode: OutputMode;
-  onChange: (m: OutputMode) => void;
-}) {
+function OutputModeSwitch({ mode, onChange }: { mode: OutputMode; onChange: (m: OutputMode) => void }) {
   const modes: { id: OutputMode; label: string }[] = [
     { id: "fan", label: "Fan" },
     { id: "coach", label: "Coach" },
@@ -222,439 +139,18 @@ function OutputModeSwitch({
   );
 }
 
-/* ProbabilityHero */
-function ProbabilityHero({
-  probability,
-  confidence,
-  pressureState,
-  momentumState,
-  isDemoFallback,
-}: {
-  probability: number;
-  confidence: string;
-  pressureState: string;
-  momentumState: string;
-  isDemoFallback: boolean;
-}) {
-  const pct = Math.round(probability * 100);
-  const delta = pct - 50;
-  return (
-    <div className="flex flex-col items-center gap-3 py-2">
-      {isDemoFallback && (
-        <span className={`${pill} border-[#E9A23B]/30 bg-[#E9A23B]/08 text-[#E9A23B]/80 text-[10px]`}>
-          Demo fallback — backend unavailable
-        </span>
-      )}
-      {/* Big number */}
-      <div className="relative flex flex-col items-center">
-        <span className="font-head text-[72px] leading-none font-bold text-[#F7F8FA] tracking-tight">
-          {pct}
-          <span className="text-[32px] text-[#C9CFDA]/50">%</span>
-        </span>
-        <span className="text-[11px] font-semibold text-[#D4FF3A]/80 tracking-wide -mt-1">
-          Calibrated win probability
-        </span>
-      </div>
-
-      {/* Delta */}
-      <div
-        className={`font-head text-[14px] font-semibold ${delta >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}`}
-      >
-        {delta >= 0 ? "+" : ""}
-        {delta}pp vs baseline
-      </div>
-
-      {/* Badges row */}
-      <div className="flex flex-wrap justify-center gap-2">
-        <span className={`${pill} ${confidenceColor(confidence)}`}>
-          {confidence} confidence
-        </span>
-        <span
-          className={`${pill} ${
-            momentumState === "HOT"
-              ? "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]"
-              : momentumState === "COLD"
-              ? "border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444]"
-              : "border-white/10 bg-white/[0.04] text-[#C9CFDA]/60"
-          }`}
-        >
-          {momentumState === "HOT" ? "🔥 " : momentumState === "COLD" ? "❄ " : ""}
-          {momentumState} momentum
-        </span>
-        <span
-          className={`${pill} ${
-            pressureState.includes("AGAINST")
-              ? "border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444]"
-              : pressureState.includes("FOR")
-              ? "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]"
-              : "border-white/10 bg-white/[0.04] text-[#C9CFDA]/60"
-          }`}
-        >
-          {pressureLabel(pressureState)}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* TacticalRecommendationCard */
-function TacticalRecommendationCard({
-  patternName,
-  uplift,
-  riskLevel,
-  confidence,
-  explanation,
-  strategicPriority,
-}: {
-  patternName: string;
-  uplift: number;
-  riskLevel: string;
-  confidence: string;
-  explanation: string;
-  strategicPriority?: string;
-}) {
-  return (
-    <div className="rounded-[16px] border border-[#D4FF3A]/20 bg-[#D4FF3A]/[0.04] p-4 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className={label}>Recommended pattern</div>
-          <div className="font-head text-[15px] font-bold text-[#F7F8FA] mt-1 leading-snug">
-            {patternName}
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span
-            className={`font-head text-[18px] font-bold ${upliftColor(uplift)}`}
-          >
-            {uplift > 0 ? "+" : ""}
-            {uplift}%
-          </span>
-          <span className="text-[9px] text-[#C9CFDA]/40 uppercase tracking-wide">
-            expected uplift
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        <span className={`${pill} ${riskColor(riskLevel)}`}>
-          {riskLevel} risk
-        </span>
-        <span className={`${pill} ${confidenceColor(confidence)}`}>
-          {confidence} confidence
-        </span>
-        {strategicPriority && (
-          <span
-            className={`${pill} ${
-              strategicPriority === "EXPLOIT"
-                ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]/80"
-                : strategicPriority === "PROTECT"
-                ? "border-[#E9A23B]/30 bg-[#E9A23B]/08 text-[#E9A23B]/80"
-                : "border-[#3B82F6]/30 bg-[#3B82F6]/08 text-[#3B82F6]/80"
-            }`}
-          >
-            {strategicPriority}
-          </span>
-        )}
-      </div>
-
-      <p className="text-[12px] text-[#C9CFDA]/70 leading-relaxed">
-        {explanation}
-      </p>
-    </div>
-  );
-}
-
-/* PatternAlternativesCard */
-function PatternAlternativesCard({
-  patterns,
-  selectedPatternId,
-  onSelect,
-}: {
-  patterns: PatternAlternative[];
-  selectedPatternId: string | null;
-  onSelect: (p: PatternAlternative) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className={label}>Compare tactical options</div>
-      {patterns.map((p, i) => (
-        <button
-          key={p.id}
-          onClick={() => onSelect(p)}
-          className={`w-full text-left rounded-[12px] border p-3 transition-all
-            ${selectedPatternId === p.id
-              ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/[0.06]"
-              : i === 0
-              ? "border-[#D4FF3A]/20 bg-white/[0.02] hover:border-[#D4FF3A]/30"
-              : "border-white/[0.06] bg-white/[0.01] hover:border-white/[0.10]"
-            }`}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span
-              className={`text-[12px] font-semibold ${
-                selectedPatternId === p.id
-                  ? "text-[#F7F8FA]"
-                  : "text-[#C9CFDA]/80"
-              }`}
-            >
-              {i === 0 && (
-                <span className="text-[#D4FF3A] mr-1.5">★</span>
-              )}
-              {p.name}
-            </span>
-            <span
-              className={`font-head text-[13px] font-bold shrink-0 ${upliftColor(p.uplift)}`}
-            >
-              {p.uplift > 0 ? "+" : ""}
-              {p.uplift}%
-            </span>
-          </div>
-          <div className="flex gap-1.5 mt-1.5">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${riskColor(p.risk)}`}>
-              {p.risk} risk
-            </span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${confidenceColor(p.confidence)}`}>
-              {p.confidence}
-            </span>
-          </div>
-          <p className="text-[11px] text-[#C9CFDA]/50 mt-1.5 leading-snug">
-            {p.description}
-          </p>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* RegisterOutcomePanel */
-function RegisterOutcomePanel({
-  onRegister,
-}: {
-  onRegister: (o: RegisteredOutcome) => void;
-}) {
-  const [winner, setWinner] = useState<"player" | "opponent">("player");
-  const [rallyLength, setRallyLength] = useState<"SHORT" | "MEDIUM" | "LONG">("SHORT");
-  const [finishType, setFinishType] = useState<"WINNER" | "FORCED_ERROR" | "UNFORCED_ERROR">("WINNER");
-  const [serveDir, setServeDir] = useState<"T" | "BODY" | "WIDE">("T");
-  const [pattern, setPattern] = useState("Flat T-Serve + Inside-Out FH");
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className={label}>Register actual outcome</div>
-
-      {/* Pattern played */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] text-[#C9CFDA]/60">Pattern executed</span>
-        <input
-          type="text"
-          value={pattern}
-          onChange={(e) => setPattern(e.target.value)}
-          className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[10px] px-3 py-2 text-[13px] text-[#F7F8FA] placeholder-[#C9CFDA]/30 focus:outline-none focus:border-[#D4FF3A]/40 transition-colors"
-        />
-      </div>
-
-      {/* Winner */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] text-[#C9CFDA]/60">Point won by</span>
-        <div className="grid grid-cols-2 gap-2">
-          {(["player", "opponent"] as const).map((w) => (
-            <button
-              key={w}
-              onClick={() => setWinner(w)}
-              className={`py-2 rounded-[10px] text-[12px] font-semibold border transition-all
-                ${winner === w
-                  ? w === "player"
-                    ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
-                    : "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]"
-                  : "border-white/[0.07] bg-white/[0.02] text-[#C9CFDA]/60 hover:border-white/[0.12]"
-                }`}
-            >
-              {w === "player" ? "Player won" : "Opponent won"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Rally length */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] text-[#C9CFDA]/60">Rally length</span>
-        <div className="grid grid-cols-3 gap-2">
-          {(["SHORT", "MEDIUM", "LONG"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRallyLength(r)}
-              className={`py-2 rounded-[10px] text-[11px] font-semibold border transition-all
-                ${rallyLength === r
-                  ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/08 text-[#D4FF3A]"
-                  : "border-white/[0.07] bg-white/[0.02] text-[#C9CFDA]/60 hover:border-white/[0.12]"
-                }`}
-            >
-              {r.charAt(0) + r.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Finish type */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] text-[#C9CFDA]/60">Finish type</span>
-        <div className="grid grid-cols-3 gap-2">
-          {(["WINNER", "FORCED_ERROR", "UNFORCED_ERROR"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFinishType(f)}
-              className={`py-2 rounded-[10px] text-[10px] font-semibold border transition-all
-                ${finishType === f
-                  ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/08 text-[#D4FF3A]"
-                  : "border-white/[0.07] bg-white/[0.02] text-[#C9CFDA]/60 hover:border-white/[0.12]"
-                }`}
-            >
-              {f.replace(/_/g, " ").charAt(0) +
-                f.replace(/_/g, " ").slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Serve direction */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[11px] text-[#C9CFDA]/60">Serve direction</span>
-        <div className="grid grid-cols-3 gap-2">
-          {(["T", "BODY", "WIDE"] as const).map((d) => (
-            <button
-              key={d}
-              onClick={() => setServeDir(d)}
-              className={`py-2 rounded-[10px] text-[11px] font-semibold border transition-all
-                ${serveDir === d
-                  ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/08 text-[#D4FF3A]"
-                  : "border-white/[0.07] bg-white/[0.02] text-[#C9CFDA]/60 hover:border-white/[0.12]"
-                }`}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* CTA */}
-      <button
-        onClick={() =>
-          onRegister({
-            actualPattern: pattern,
-            winner,
-            rallyLength,
-            finishType,
-            serveDirection: serveDir,
-          })
-        }
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] bg-[#D4FF3A] text-[#0B1220] text-[13px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.25)]"
-      >
-        <CheckIcon size={15} />
-        Register point outcome
-      </button>
-    </div>
-  );
-}
-
-/* PostPointExplanationPanel */
-function PostPointExplanationPanel({
-  probabilityBefore,
-  actualOutcome,
-  probabilitySwing,
-  explanation,
-  nextPointAdjustment,
-  isDemoFallback,
-}: {
-  probabilityBefore: number;
-  actualOutcome: "WON" | "LOST";
-  probabilitySwing: number;
-  explanation: string;
-  nextPointAdjustment: string;
-  isDemoFallback: boolean;
-}) {
-  const probPct = Math.round(probabilityBefore * 100);
-  const swingPct = Math.round(Math.abs(probabilitySwing) * 100);
-
-  return (
-    <div className="flex flex-col gap-3">
-      {isDemoFallback && (
-        <span className={`self-start ${pill} border-[#E9A23B]/30 bg-[#E9A23B]/08 text-[#E9A23B]/80 text-[10px]`}>
-          Demo fallback data
-        </span>
-      )}
-
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-[12px] bg-white/[0.03] border border-white/[0.06] p-3 text-center">
-          <div className="font-head text-[18px] font-bold text-[#F7F8FA]">{probPct}%</div>
-          <div className={`${label} mt-0.5`}>Pre-point</div>
-        </div>
-        <div
-          className={`rounded-[12px] border p-3 text-center ${
-            actualOutcome === "WON"
-              ? "border-[#22C55E]/30 bg-[#22C55E]/08"
-              : "border-[#EF4444]/30 bg-[#EF4444]/08"
-          }`}
-        >
-          <div
-            className={`font-head text-[14px] font-bold ${actualOutcome === "WON" ? "text-[#22C55E]" : "text-[#EF4444]"}`}
-          >
-            {actualOutcome}
-          </div>
-          <div className={`${label} mt-0.5`}>Outcome</div>
-        </div>
-        <div
-          className={`rounded-[12px] border p-3 text-center ${
-            probabilitySwing >= 0
-              ? "border-[#22C55E]/30 bg-[#22C55E]/08"
-              : "border-[#EF4444]/30 bg-[#EF4444]/08"
-          }`}
-        >
-          <div
-            className={`font-head text-[18px] font-bold ${probabilitySwing >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}`}
-          >
-            {probabilitySwing >= 0 ? "+" : "-"}
-            {swingPct}pp
-          </div>
-          <div className={`${label} mt-0.5`}>Swing</div>
-        </div>
-      </div>
-
-      <div className="rounded-[12px] bg-white/[0.02] border border-white/[0.06] p-3">
-        <div className={`${label} mb-2`}>Explanation</div>
-        <p className="text-[12px] text-[#C9CFDA]/80 leading-relaxed">{explanation}</p>
-      </div>
-
-      <div className="rounded-[12px] bg-white/[0.02] border border-[#D4FF3A]/10 p-3">
-        <div className={`${label} mb-2`}>Next-point adjustment</div>
-        <p className="text-[12px] text-[#C9CFDA]/70 leading-relaxed">{nextPointAdjustment}</p>
-      </div>
-    </div>
-  );
-}
-
 /* InsightDisplay */
-function InsightDisplay({
-  mode,
-  insights,
-}: {
+function InsightDisplay({ mode, insights }: {
   mode: OutputMode;
-  insights: {
-    fan: string;
-    coach: string;
-    media: string;
-    apiPayload: object;
-  } | null;
+  insights: { fan: string; coach: string; media: string; apiPayload: object } | null;
 }) {
   if (!insights) {
     return (
       <div className="rounded-[12px] border border-dashed border-white/[0.08] p-4 text-center">
-        <p className="text-[12px] text-[#C9CFDA]/40">
-          Complete the workflow to generate insights
-        </p>
+        <p className="text-[12px] text-[#C9CFDA]/40">Complete the workflow to generate insights</p>
       </div>
     );
   }
-
   if (mode === "api") {
     return (
       <pre className="text-[11px] text-[#D4FF3A]/80 bg-black/30 rounded-[12px] p-3 overflow-auto max-h-60 leading-relaxed font-mono">
@@ -662,21 +158,8 @@ function InsightDisplay({
       </pre>
     );
   }
-
-  const text =
-    mode === "fan"
-      ? insights.fan
-      : mode === "coach"
-      ? insights.coach
-      : insights.media;
-
-  const modeLabel =
-    mode === "fan"
-      ? "Fan Insight"
-      : mode === "coach"
-      ? "Coach Insight"
-      : "Media Insight";
-
+  const text = mode === "fan" ? insights.fan : mode === "coach" ? insights.coach : insights.media;
+  const modeLabel = mode === "fan" ? "Fan Insight" : mode === "coach" ? "Coach Insight" : "Media Insight";
   return (
     <div className="rounded-[12px] bg-white/[0.02] border border-white/[0.06] p-3">
       <div className={`${label} mb-2`}>{modeLabel}</div>
@@ -685,679 +168,68 @@ function InsightDisplay({
   );
 }
 
-/* IntegrationBrief */
-function IntegrationBrief({
-  insights,
-  scenario,
-  prediction,
-  postPoint,
-  onCopy,
-  copied,
-}: {
-  insights: ReturnType<typeof useInfosysDemoState>["insights"];
-  scenario: ReturnType<typeof useInfosysDemoState>["selectedScenario"];
-  prediction: ReturnType<typeof useInfosysDemoState>["prediction"];
-  postPoint: ReturnType<typeof useInfosysDemoState>["postPointExplanation"];
-  onCopy: (text: string) => void;
-  copied: boolean;
-}) {
-  if (!insights || !scenario || !prediction) return null;
-
-  const prob = Math.round(prediction.probability * 100);
-
-  const briefText = [
-    "═══════════════════════════════════",
-    "ATP TACTICAL INTELLIGENCE BRIEF",
-    "TennisAI Pro · Pre-point safe · Calibrated model",
-    "═══════════════════════════════════",
-    "",
-    "MATCH CONTEXT",
-    `${scenario.player1} vs ${scenario.player2}`,
-    `${scenario.surface} · ${scenario.round} · ${scenario.score}`,
-    `Score: ${scenario.pointScore} · ${pressureLabel(scenario.pressureState)}`,
-    "",
-    "PRE-POINT PREDICTION",
-    `Calibrated probability: ${prob}%`,
-    `Tactical call: ${prediction.tacticalCall}`,
-    `Confidence: ${prediction.tacticalConfidence} · Risk: ${prediction.riskLevel}`,
-    "",
-    "TACTICAL RATIONALE",
-    prediction.tacticalExplanation || prediction.tacticalV3?.tacticalRationaleV3 || "—",
-    "",
-    "POST-POINT EXPLANATION",
-    postPoint
-      ? `Outcome: ${postPoint.actualOutcome} · Swing: ${Math.round(postPoint.probabilitySwing * 100)}pp\n${postPoint.explanation}`
-      : "—",
-    "",
-    "─── FAN ───",
-    insights.fan,
-    "",
-    "─── COACH ───",
-    insights.coach,
-    "",
-    "─── MEDIA ───",
-    insights.media,
-    "",
-    "─── ALLY/API PAYLOAD ───",
-    JSON.stringify(insights.apiPayload, null, 2),
-    "",
-    "─── POTENTIAL INFOSYS INTEGRATIONS ───",
-    "· Second Screen: pre-point probability overlay + tactical recommendation",
-    "· Ally chatbot: 'Why did Sinner go T?' → natural language explanation",
-    "· Player Portal: tactical pattern success rate + post-match trend",
-    "· Stats Centre: win probability timeline + pattern distribution",
-    "",
-    "Generated by TennisAI Pro · tennisai-pro-green.vercel.app",
-  ].join("\n");
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className={label}>Integration brief</div>
-        <button
-          onClick={() => onCopy(briefText)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[11px] font-semibold border transition-all
-            ${copied
-              ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
-              : "border-white/[0.10] bg-white/[0.03] text-[#C9CFDA]/70 hover:border-[#D4FF3A]/30 hover:text-[#F7F8FA]"
-            }`}
-        >
-          {copied ? <CheckIcon size={12} /> : <DownloadIcon size={12} />}
-          {copied ? "Copied!" : "Copy brief"}
-        </button>
-      </div>
-
-      {/* Integrations grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          {
-            name: "Second Screen",
-            desc: "Pre-point overlay + tactical context",
-            icon: "📺",
-          },
-          {
-            name: "Ally Chatbot",
-            desc: "Natural language tactical Q&A",
-            icon: "💬",
-          },
-          {
-            name: "Player Portal",
-            desc: "Pattern success rates + trends",
-            icon: "👤",
-          },
-          {
-            name: "Stats Centre",
-            desc: "Win probability timeline",
-            icon: "📊",
-          },
-        ].map((intg) => (
-          <div
-            key={intg.name}
-            className="rounded-[12px] border border-white/[0.06] bg-white/[0.02] p-3"
-          >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[14px]">{intg.icon}</span>
-              <span className="text-[11px] font-semibold text-[#F7F8FA]">
-                {intg.name}
-              </span>
-            </div>
-            <p className="text-[10px] text-[#C9CFDA]/50 leading-snug">{intg.desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Preview */}
-      <CollapsiblePanel title="Full brief text (copy-ready)">
-        <pre className="text-[10px] text-[#C9CFDA]/60 leading-relaxed font-mono whitespace-pre-wrap max-h-48 overflow-auto">
-          {briefText.substring(0, 800)}
-          {briefText.length > 800 ? "\n…(truncated)" : ""}
-        </pre>
-      </CollapsiblePanel>
-    </div>
-  );
-}
-
-// ─── SCENARIO CONFIGURATOR ───────────────────────────────────────────────────
-
-// Deriva la pressureState dai flag e dalla situazione di punteggio
-function derivePressureState(
-  isOnServe: boolean,
-  isBreakPoint: boolean,
-  isGamePoint: boolean,
-  isGamePointAgainst: boolean
-): string {
-  if (isGamePointAgainst) return "GAME_POINT_AGAINST";
-  if (isBreakPoint && isOnServe) return "BREAK_POINT_AGAINST";
-  if (isBreakPoint && !isOnServe) return "BREAK_POINT_FOR";
-  if (isGamePoint) return "GAME_POINT_FOR";
-  return "NEUTRAL";
-}
-
-// Momentum testuale → frazione [0,1]
-const MOMENTUM_VALUES: Record<string, number> = {
-  HOT: 0.8,
-  NEUTRAL: 0.4,
-  COLD: 0.2,
-};
-
-interface ScenarioFormState {
-  player1: string;
-  player2: string;
-  surface: "Hard" | "Clay" | "Grass";
-  round: string;
-  // Punteggio
-  sets: string;         // es. "6-4, 3-5"
-  pointScore: string;   // es. "30-40"
-  set: number;
-  game: number;
-  pointNumber: number;
-  // Servizio
-  isOnServe: boolean;
-  serveNumber: 1 | 2;
-  // Stats (come percentuali intere, convertite in [0,1] prima di inviare)
-  svcPct: number;       // 0-100
-  rtnPct: number;
-  firstSvcPct: number;
-  secondSvcPct: number;
-  // Momentum
-  momentum: "HOT" | "NEUTRAL" | "COLD";
-  // Pressure flags
-  isBreakPoint: boolean;
-  isGamePoint: boolean;
-  isGamePointAgainst: boolean;
-}
-
-const DEFAULT_FORM: ScenarioFormState = {
-  player1: "",
-  player2: "",
-  surface: "Hard",
-  round: "QF",
-  sets: "",
-  pointScore: "0-0",
-  set: 1,
-  game: 1,
-  pointNumber: 1,
-  isOnServe: true,
-  serveNumber: 1,
-  svcPct: 64,
-  rtnPct: 45,
-  firstSvcPct: 72,
-  secondSvcPct: 52,
-  momentum: "NEUTRAL",
-  isBreakPoint: false,
-  isGamePoint: false,
-  isGamePointAgainst: false,
-};
-
-function formToScenario(f: ScenarioFormState): import("../hooks/useInfosysDemoState").DemoScenario {
-  const pressureState = derivePressureState(
-    f.isOnServe, f.isBreakPoint, f.isGamePoint, f.isGamePointAgainst
-  );
-  return {
-    id: `custom_${Date.now()}`,
-    label: f.player1 && f.player2 ? `${f.player1} vs ${f.player2}` : "Custom scenario",
-    description: `${f.surface} · ${f.round} · ${f.pointScore} · ${pressureState.replace(/_/g, " ")}`,
-    surface: f.surface,
-    round: f.round,
-    player1: f.player1 || "Player",
-    player2: f.player2 || "Opponent",
-    score: f.sets || "0-0",
-    pointScore: f.pointScore,
-    pressureState,
-    isOnServe: f.isOnServe,
-    serveNumber: f.serveNumber,
-    momentum: f.momentum,
-    svcPct: f.svcPct / 100,
-    rtnPct: f.rtnPct / 100,
-    firstSvcPct: f.firstSvcPct / 100,
-    secondSvcPct: f.secondSvcPct / 100,
-    momentumLast5: MOMENTUM_VALUES[f.momentum],
-    isBreakPoint: f.isBreakPoint,
-    isGamePoint: f.isGamePoint,
-    isGamePointAgainst: f.isGamePointAgainst,
-    set: f.set,
-    game: f.game,
-    pointNumber: f.pointNumber,
-  };
-}
-
-function scenarioToForm(s: import("../hooks/useInfosysDemoState").DemoScenario): ScenarioFormState {
-  const mom = s.momentumLast5 >= 0.65 ? "HOT" : s.momentumLast5 <= 0.3 ? "COLD" : "NEUTRAL";
-  return {
-    player1: s.player1,
-    player2: s.player2,
-    surface: s.surface as "Hard" | "Clay" | "Grass",
-    round: s.round,
-    sets: s.score,
-    pointScore: s.pointScore,
-    set: s.set,
-    game: s.game,
-    pointNumber: s.pointNumber,
-    isOnServe: s.isOnServe,
-    serveNumber: s.serveNumber,
-    svcPct: Math.round(s.svcPct * 100),
-    rtnPct: Math.round(s.rtnPct * 100),
-    firstSvcPct: Math.round(s.firstSvcPct * 100),
-    secondSvcPct: Math.round(s.secondSvcPct * 100),
-    momentum: mom,
-    isBreakPoint: s.isBreakPoint,
-    isGamePoint: s.isGamePoint,
-    isGamePointAgainst: s.isGamePointAgainst,
-  };
-}
-
-// Componente input condiviso
-function FieldRow({
-  label: lbl,
-  children,
-}: {
+/* StatBar — riga singola stile ATP/Infosys con barra proporzionale bicolore */
+function StatBar({ label, p1, p2, fmt }: {
   label: string;
-  children: React.ReactNode;
+  p1: number;
+  p2: number;
+  fmt?: (v: number) => string;
 }) {
+  const total = p1 + p2;
+  const p1W = total > 0 ? Math.round((p1 / total) * 100) : 50;
+  const p1Lead = p1 >= p2;
+  const display = fmt ?? ((v: number) => String(v));
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/40 font-semibold">
-        {lbl}
-      </span>
-      {children}
+    <div className="flex flex-col gap-[5px]">
+      <div className="flex items-center gap-1">
+        <span className={`font-head text-[18px] font-bold tabular-nums leading-none w-14 ${p1Lead ? "text-[#D4FF3A]" : "text-[#F7F8FA]"}`}>
+          {display(p1)}
+        </span>
+        <span className="flex-1 text-center text-[7.5px] uppercase tracking-[0.22em] font-semibold shrink" style={{ color: "rgba(201,207,218,0.35)" }}>
+          {label}
+        </span>
+        <span className={`font-head text-[18px] font-bold tabular-nums leading-none w-14 text-right ${!p1Lead ? "text-[#D4FF3A]" : "text-[#C9CFDA]/50"}`}>
+          {display(p2)}
+        </span>
+      </div>
+      <div className="h-[4px] rounded-full overflow-hidden flex">
+        <div
+          className="transition-all duration-700 ease-out"
+          style={{
+            width: `${p1W}%`,
+            background: p1Lead ? "#D4FF3A" : "rgba(247,248,250,0.45)",
+            borderRadius: "999px 0 0 999px",
+          }}
+        />
+        <div
+          className="transition-all duration-700 ease-out"
+          style={{
+            width: `${100 - p1W}%`,
+            background: !p1Lead ? "#D4FF3A" : "rgba(201,207,218,0.12)",
+            borderRadius: "0 999px 999px 0",
+          }}
+        />
+      </div>
     </div>
   );
 }
 
-function TextInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
+/* CollapsiblePanel */
+function CollapsiblePanel({ title, children, defaultOpen = false }: {
+  title: string; children: React.ReactNode; defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#F7F8FA] placeholder-[#C9CFDA]/25 focus:outline-none focus:border-[#D4FF3A]/40 transition-colors"
-    />
-  );
-}
-
-function NumInput({
-  value,
-  onChange,
-  min,
-  max,
-  suffix,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-  suffix?: string;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-[8px] px-2.5 py-1.5 text-[12px] text-[#F7F8FA] focus:outline-none focus:border-[#D4FF3A]/40 transition-colors"
-      />
-      {suffix && (
-        <span className="text-[11px] text-[#C9CFDA]/40 shrink-0">{suffix}</span>
-      )}
-    </div>
-  );
-}
-
-function ToggleGroup<T extends string>({
-  options,
-  value,
-  onChange,
-  small,
-}: {
-  options: { v: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-  small?: boolean;
-}) {
-  return (
-    <div className="flex gap-1 p-0.5 bg-white/[0.03] rounded-[8px]">
-      {options.map((o) => (
-        <button
-          key={o.v}
-          onClick={() => onChange(o.v)}
-          className={`flex-1 rounded-[6px] text-center transition-all
-            ${small ? "px-1.5 py-1 text-[10px]" : "px-2 py-1.5 text-[11px]"}
-            font-semibold
-            ${value === o.v
-              ? "bg-[#D4FF3A] text-[#0B1220]"
-              : "text-[#C9CFDA]/50 hover:text-[#C9CFDA]/80"
-            }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function CheckToggle({
-  checked,
-  onChange,
-  label: lbl,
-  danger,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border text-[11px] font-semibold transition-all w-full
-        ${checked
-          ? danger
-            ? "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]"
-            : "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
-          : "border-white/[0.07] bg-white/[0.02] text-[#C9CFDA]/50 hover:border-white/[0.12]"
-        }`}
-    >
-      <span
-        className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-all
-          ${checked
-            ? danger
-              ? "border-[#EF4444] bg-[#EF4444]"
-              : "border-[#22C55E] bg-[#22C55E]"
-            : "border-white/20"
-          }`}
-      >
-        {checked && (
-          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-            <path d="M1 3.5L3.5 6L8 1" stroke="#0B1220" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </span>
-      {lbl}
-    </button>
-  );
-}
-
-// Presets rapidi — preset card compatta
-function PresetChip({
-  scenario,
-  active,
-  onClick,
-}: {
-  scenario: import("../hooks/useInfosysDemoState").DemoScenario;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const pressureColor = scenario.pressureState.includes("AGAINST")
-    ? "text-[#EF4444]/70"
-    : scenario.pressureState.includes("FOR")
-    ? "text-[#22C55E]/70"
-    : "text-[#C9CFDA]/40";
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left px-3 py-2 rounded-[10px] border transition-all
-        ${active
-          ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/[0.05]"
-          : "border-white/[0.06] bg-white/[0.01] hover:border-white/[0.12]"
-        }`}
-    >
-      <div className="flex items-center justify-between gap-1">
-        <span className={`text-[11px] font-semibold truncate ${active ? "text-[#F7F8FA]" : "text-[#C9CFDA]/70"}`}>
-          {scenario.label}
-        </span>
-        <span className={`text-[10px] shrink-0 ${pressureColor}`}>
-          {scenario.pointScore}
-        </span>
-      </div>
-      <div className="text-[10px] text-[#C9CFDA]/40 mt-0.5 truncate">
-        {scenario.player1} · {scenario.surface}
-      </div>
-    </button>
-  );
-}
-
-// Configuratore completo
-function ScenarioConfigurator({
-  form,
-  onChange,
-  onConfirm,
-  presets,
-  activePresetId,
-  onPreset,
-}: {
-  form: ScenarioFormState;
-  onChange: (patch: Partial<ScenarioFormState>) => void;
-  onConfirm: () => void;
-  presets: import("../hooks/useInfosysDemoState").DemoScenario[];
-  activePresetId: string | null;
-  onPreset: (s: import("../hooks/useInfosysDemoState").DemoScenario) => void;
-}) {
-  const pressureState = derivePressureState(
-    form.isOnServe, form.isBreakPoint, form.isGamePoint, form.isGamePointAgainst
-  );
-
-  const pressureColor = pressureState.includes("AGAINST")
-    ? "border-[#EF4444]/30 bg-[#EF4444]/08 text-[#EF4444]"
-    : pressureState.includes("FOR")
-    ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]"
-    : "border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/50";
-
-  const canConfirm = form.player1.trim().length > 0 && form.player2.trim().length > 0;
-
-  return (
-    <div className="flex flex-col gap-4">
-
-      {/* Presets rapidi */}
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
-          Quick presets
-        </span>
-        <div className="flex flex-col gap-1.5">
-          {presets.map((s) => (
-            <PresetChip
-              key={s.id}
-              scenario={s}
-              active={activePresetId === s.id}
-              onClick={() => onPreset(s)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t border-white/[0.06]" />
-
-      {/* Giocatori */}
-      <div className="flex flex-col gap-2.5">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
-          Players
-        </span>
-        <FieldRow label="Server / Focus player">
-          <TextInput
-            value={form.player1}
-            onChange={(v) => onChange({ player1: v })}
-            placeholder="e.g. Sinner J."
-          />
-        </FieldRow>
-        <FieldRow label="Opponent">
-          <TextInput
-            value={form.player2}
-            onChange={(v) => onChange({ player2: v })}
-            placeholder="e.g. Alcaraz C."
-          />
-        </FieldRow>
-      </div>
-
-      <div className="border-t border-white/[0.06]" />
-
-      {/* Match context */}
-      <div className="flex flex-col gap-2.5">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
-          Match context
-        </span>
-        <FieldRow label="Surface">
-          <ToggleGroup
-            options={[
-              { v: "Hard" as const, label: "Hard" },
-              { v: "Clay" as const, label: "Clay" },
-              { v: "Grass" as const, label: "Grass" },
-            ]}
-            value={form.surface}
-            onChange={(v) => onChange({ surface: v })}
-          />
-        </FieldRow>
-        <div className="grid grid-cols-2 gap-2">
-          <FieldRow label="Round">
-            <TextInput
-              value={form.round}
-              onChange={(v) => onChange({ round: v })}
-              placeholder="QF, SF, F…"
-            />
-          </FieldRow>
-          <FieldRow label="Score (sets)">
-            <TextInput
-              value={form.sets}
-              onChange={(v) => onChange({ sets: v })}
-              placeholder="6-4, 3-5"
-            />
-          </FieldRow>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <FieldRow label="Set">
-            <NumInput value={form.set} onChange={(v) => onChange({ set: v })} min={1} max={5} />
-          </FieldRow>
-          <FieldRow label="Game">
-            <NumInput value={form.game} onChange={(v) => onChange({ game: v })} min={1} max={13} />
-          </FieldRow>
-          <FieldRow label="Point #">
-            <NumInput value={form.pointNumber} onChange={(v) => onChange({ pointNumber: v })} min={1} />
-          </FieldRow>
-        </div>
-      </div>
-
-      <div className="border-t border-white/[0.06]" />
-
-      {/* Punto corrente */}
-      <div className="flex flex-col gap-2.5">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
-          Current point
-        </span>
-        <FieldRow label="Point score">
-          <TextInput
-            value={form.pointScore}
-            onChange={(v) => onChange({ pointScore: v })}
-            placeholder="30-40, 40-15, 5-6*…"
-          />
-        </FieldRow>
-        <FieldRow label="Serving">
-          <ToggleGroup
-            options={[
-              { v: "true" as unknown as boolean, label: "On serve" },
-              { v: "false" as unknown as boolean, label: "Returning" },
-            ] as unknown as { v: boolean; label: string }[]}
-            value={form.isOnServe}
-            onChange={(v) => onChange({ isOnServe: v as unknown as boolean })}
-          />
-        </FieldRow>
-        {form.isOnServe && (
-          <FieldRow label="Serve number">
-            <ToggleGroup
-              options={[
-                { v: 1 as const, label: "1st" },
-                { v: 2 as const, label: "2nd" },
-              ]}
-              value={form.serveNumber}
-              onChange={(v) => onChange({ serveNumber: v })}
-            />
-          </FieldRow>
-        )}
-        <FieldRow label="Momentum (last 5 pts)">
-          <ToggleGroup
-            options={[
-              { v: "COLD" as const, label: "❄ Cold" },
-              { v: "NEUTRAL" as const, label: "— Neutral" },
-              { v: "HOT" as const, label: "🔥 Hot" },
-            ]}
-            value={form.momentum}
-            onChange={(v) => onChange({ momentum: v })}
-            small
-          />
-        </FieldRow>
-      </div>
-
-      <div className="border-t border-white/[0.06]" />
-
-      {/* Pressure flags */}
-      <div className="flex flex-col gap-2">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
-          Pressure flags
-        </span>
-        <CheckToggle
-          checked={form.isBreakPoint}
-          onChange={(v) => onChange({ isBreakPoint: v })}
-          label="Break point"
-          danger={form.isOnServe}
-        />
-        <CheckToggle
-          checked={form.isGamePoint}
-          onChange={(v) => onChange({ isGamePoint: v })}
-          label="Game point (for)"
-        />
-        <CheckToggle
-          checked={form.isGamePointAgainst}
-          onChange={(v) => onChange({ isGamePointAgainst: v })}
-          label="Game point (against)"
-          danger
-        />
-        {/* Preview pressure state */}
-        <div className={`mt-1 px-2.5 py-1.5 rounded-[8px] border text-[11px] font-semibold text-center ${pressureColor}`}>
-          {pressureLabel(pressureState)}
-        </div>
-      </div>
-
-      <div className="border-t border-white/[0.06]" />
-
-      {/* Stats */}
-      <div className="flex flex-col gap-2.5">
-        <span className="text-[10px] uppercase tracking-[0.18em] text-[#C9CFDA]/30 font-semibold">
-          Match stats (%)
-        </span>
-        <div className="grid grid-cols-2 gap-2">
-          <FieldRow label="Svc pts won">
-            <NumInput value={form.svcPct} onChange={(v) => onChange({ svcPct: v })} min={0} max={100} suffix="%" />
-          </FieldRow>
-          <FieldRow label="Rtn pts won">
-            <NumInput value={form.rtnPct} onChange={(v) => onChange({ rtnPct: v })} min={0} max={100} suffix="%" />
-          </FieldRow>
-          <FieldRow label="1st srv won">
-            <NumInput value={form.firstSvcPct} onChange={(v) => onChange({ firstSvcPct: v })} min={0} max={100} suffix="%" />
-          </FieldRow>
-          <FieldRow label="2nd srv won">
-            <NumInput value={form.secondSvcPct} onChange={(v) => onChange({ secondSvcPct: v })} min={0} max={100} suffix="%" />
-          </FieldRow>
-        </div>
-      </div>
-
-      {/* CTA */}
+    <div className="border border-white/[0.07] rounded-[16px] overflow-hidden">
       <button
-        onClick={onConfirm}
-        disabled={!canConfirm}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[10px] bg-[#D4FF3A] text-[#0B1220] text-[12px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.2)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
+        className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
       >
-        <ArrowRightIcon size={13} />
-        {canConfirm ? "Set scenario" : "Enter both player names"}
+        <span className={label}>{title}</span>
+        <span className={`text-[#C9CFDA]/40 transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
       </button>
+      {open && <div className="p-4 border-t border-white/[0.06]">{children}</div>}
     </div>
   );
 }
@@ -1368,13 +240,9 @@ export const InfosysDemoPage: React.FC = () => {
   const state = useInfosysDemoState();
   const {
     currentStep,
-    setCurrentStep,
     selectedScenario,
     prediction,
     patterns,
-    selectedPattern,
-    registeredOutcome,
-    postPointExplanation,
     insights,
     outputMode,
     backendStatus,
@@ -1383,18 +251,41 @@ export const InfosysDemoPage: React.FC = () => {
     scenarios,
     selectScenario,
     calculatePrediction,
-    selectPattern,
-    registerOutcome,
-    generateExplanation,
-    generateBrief,
     copyBrief,
     setOutputMode,
     resetDemo,
+    // Live loop
+    liveMode,
+    pointHistory,
+    lastSwing,
+    tagAndAdvance,
+    // Scoring engine
+    matchState,
+    runningStats,
+    scoringFlags,
+    lastScoringResult,
+    initScoring,
+    scoringDisplay,
+    // Persistence & Export
+    hasSavedMatch,
+    exportCSV,
+    exportJSON,
+    // Undo
+    canUndo,
+    undoLastPoint,
+    // Fan mode
+    fanMode,
+    setFanMode,
+    // Demo simulation toggle
+    demoSimulationMode,
+    setDemoSimulationMode,
   } = state;
 
-  // Form state per il configuratore scenario
+  // ── Wizard modal (setup only) ─────────────────────────────────────────────
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [form, setForm] = useState<ScenarioFormState>(DEFAULT_FORM);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [modelStatsOpen, setModelStatsOpen] = useState(false);
 
   const handleFormChange = useCallback((patch: Partial<ScenarioFormState>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -1404,448 +295,828 @@ export const InfosysDemoPage: React.FC = () => {
   const handlePreset = useCallback((s: typeof scenarios[0]) => {
     setForm(scenarioToForm(s));
     setActivePresetId(s.id);
-  }, [scenarios]);
-
-  const handleConfirmScenario = useCallback(() => {
-    selectScenario(formToScenario(form));
-  }, [form, selectScenario]);
+  }, []);
 
   const handleReset = useCallback(() => {
     resetDemo();
     setForm(DEFAULT_FORM);
     setActivePresetId(null);
+    setWizardOpen(false);
   }, [resetDemo]);
 
-  const stepIndex = STEP_INDEX[currentStep];
+  // ── Open wizard for setup ─────────────────────────────────────────────────
+  const openWizard = useCallback(() => {
+    setWizardOpen(true);
+  }, []);
 
-  // CTA primaria per step
-  const renderPrimaryCTA = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center gap-2 w-full py-3 rounded-[12px] bg-white/[0.04] border border-white/[0.08] text-[#C9CFDA]/60 text-[13px] font-semibold">
-          <span className="w-4 h-4 border-2 border-[#D4FF3A]/30 border-t-[#D4FF3A] rounded-full animate-spin" />
-          Calculating…
-        </div>
-      );
+  // ── Confirm scenario → init scoring → auto-predict → enter live mode ─────
+  const handleConfirmScenario = useCallback(() => {
+    const scenario = formToScenario(form);
+    selectScenario(scenario);
+    // Initialize scoring engine with setup config
+    initScoring(scenario.isOnServe, 3);
+    setWizardOpen(false);
+  }, [form, selectScenario, initScoring]);
+
+  // ── Auto-predict when scenario is set but no prediction exists ─────────────
+  useEffect(() => {
+    if (selectedScenario && !prediction && !loading) {
+      calculatePrediction();
     }
-    if (currentStep === "scenario" && selectedScenario) {
-      return (
-        <button
-          onClick={() => {
-            setCurrentStep("predict");
-          }}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] bg-[#D4FF3A] text-[#0B1220] text-[13px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.25)]"
-        >
-          <ArrowRightIcon size={15} />
-          Calculate next-point probability
-        </button>
-      );
+  }, [selectedScenario, prediction, loading, calculatePrediction]);
+
+  // ── Live mode: auto-recalculate after tagAndAdvance clears prediction ─────
+  // (tagAndAdvance sets prediction=null → selectedScenario is updated → effect above fires)
+
+  const canConfirm = form.player1.trim().length > 0 && form.player2.trim().length > 0;
+
+  // ── Point stats ───────────────────────────────────────────────────────────
+  const totalPoints = pointHistory.length;
+  const wonPoints = pointHistory.filter((p) => p.won).length;
+  const winRate = totalPoints > 0 ? Math.round((wonPoints / totalPoints) * 100) : 0;
+
+  // ── ATP-style match stats (computed from pointHistory + runningStats) ─────
+  const atpStats = React.useMemo(() => {
+    const p1Won  = pointHistory.filter((p: TaggedPoint) => p.won).length;
+    const p2Won  = pointHistory.length - p1Won;
+    const p1Win  = pointHistory.filter((p: TaggedPoint) => p.won && p.outcome.finishType === "WINNER").length;
+    const p2Win  = pointHistory.filter((p: TaggedPoint) => !p.won && p.outcome.finishType === "WINNER").length;
+    const p1UE   = pointHistory.filter((p: TaggedPoint) => !p.won && p.outcome.finishType === "UNFORCED_ERROR").length;
+    const p2UE   = pointHistory.filter((p: TaggedPoint) => p.won && p.outcome.finishType === "UNFORCED_ERROR").length;
+    const p1Long = pointHistory.filter((p: TaggedPoint) => p.won && p.outcome.rallyLength === "LONG").length;
+    const p2Long = pointHistory.filter((p: TaggedPoint) => !p.won && p.outcome.rallyLength === "LONG").length;
+    const p1SvcPct = runningStats.svcPointsPlayed > 0 ? Math.round(runningStats.svcPct * 100) : null;
+    const p2SvcPct = runningStats.rtnPointsPlayed > 0 ? Math.round((1 - runningStats.rtnPct) * 100) : null;
+    return { p1Won, p2Won, p1Win, p2Win, p1UE, p2UE, p1Long, p2Long, p1SvcPct, p2SvcPct };
+  }, [pointHistory, runningStats]);
+
+  // ── Game/Set event toast ───────────────────────────────────────────────────
+  const [gameEvent, setGameEvent] = useState<string | null>(null);
+  useEffect(() => {
+    if (!lastScoringResult) return;
+    let msg: string | null = null;
+    if (lastScoringResult.matchJustEnded) {
+      // Handled by match over bar
+      return;
+    } else if (lastScoringResult.setJustEnded) {
+      const lastSet = matchState.completedSets[matchState.completedSets.length - 1];
+      if (lastSet) {
+        const setWinnerName = lastSet[0] > lastSet[1] ? selectedScenario?.player1 : selectedScenario?.player2;
+        msg = `🎯 SET ${setWinnerName}! ${lastSet[0]}-${lastSet[1]}`;
+      }
+    } else if (lastScoringResult.gameJustEnded) {
+      msg = `✅ GAME · ${scoringDisplay.gameScore}`;
     }
-    if (currentStep === "predict") {
-      return (
-        <button
-          onClick={calculatePrediction}
-          disabled={!selectedScenario}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] bg-[#D4FF3A] text-[#0B1220] text-[13px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.25)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
-        >
-          <AIIcon size={15} />
-          Calculate next-point probability
-        </button>
-      );
+    if (msg) {
+      setGameEvent(msg);
+      const t = setTimeout(() => setGameEvent(null), 3000);
+      return () => clearTimeout(t);
     }
-    if (currentStep === "explain" && !postPointExplanation) {
-      return (
-        <button
-          onClick={generateExplanation}
-          disabled={!registeredOutcome}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] bg-[#D4FF3A] text-[#0B1220] text-[13px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.25)] disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <ChartIcon size={15} />
-          Generate post-point explanation
-        </button>
-      );
-    }
-    if (currentStep === "export" && !insights) {
-      return (
-        <button
-          onClick={generateBrief}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[12px] bg-[#D4FF3A] text-[#0B1220] text-[13px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.01] transition-all shadow-[0_4px_16px_rgba(212,255,58,0.25)]"
-        >
-          <ShareIcon size={15} />
-          Create integration brief
-        </button>
-      );
-    }
-    return null;
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastScoringResult]);
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col h-full">
 
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
-      <div className={card}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          {/* Left: title + badges */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] uppercase tracking-[0.28em] font-bold text-[#D4FF3A]/70 font-head">
-                Infosys · ATP Tour
-              </span>
-              <BackendStatusBadge status={backendStatus} />
-            </div>
-            <h2 className="font-head text-[20px] sm:text-[24px] font-bold text-[#F7F8FA] leading-tight tracking-tight">
-              ATP Tactical Intelligence Demo
-            </h2>
-            <p className="text-[12px] text-[#C9CFDA]/60 max-w-lg leading-relaxed">
-              Pre-point probability, tactical simulation and post-point explainability
-            </p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {[
-                "Pre-point safe",
-                "Calibrated model",
-                "API-first",
-                "Explainable AI",
-              ].map((b) => (
-                <span
-                  key={b}
-                  className={`${pill} border-white/[0.10] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}
-                >
-                  {b}
+      {/* ── HEADER (compact in live mode) ─────────────────────── */}
+      <div className={`${liveMode ? cardSm : card} rounded-b-none lg:rounded-b-[20px]`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] uppercase tracking-[0.28em] font-bold text-[#D4FF3A]/70 font-head">
+                  Infosys · ATP Tour
                 </span>
-              ))}
-            </div>
-          </div>
-          {/* Right: reset */}
-          <button
-            onClick={handleReset}
-            className="self-start flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-white/[0.15] hover:text-[#F7F8FA] transition-all"
-          >
-            <RefreshIcon size={12} />
-            Reset Demo
-          </button>
-        </div>
-
-        {/* Workflow stepper */}
-        <div className="pt-1">
-          <WorkflowStepper
-            currentStep={currentStep}
-            onStepClick={setCurrentStep}
-          />
-        </div>
-      </div>
-
-      {/* ── MAIN LAYOUT ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_280px] xl:grid-cols-[300px_1fr_300px] gap-4">
-
-        {/* ── LEFT RAIL ────────────────────────────────────────── */}
-        <div className="flex flex-col gap-4">
-          <div className={card}>
-            <ScenarioConfigurator
-              form={form}
-              onChange={handleFormChange}
-              onConfirm={handleConfirmScenario}
-              presets={scenarios}
-              activePresetId={activePresetId}
-              onPreset={handlePreset}
-            />
-          </div>
-
-          {/* Match context summary — visibile dopo conferma */}
-          {selectedScenario && (
-            <div className={cardSm}>
-              <div className="flex items-center justify-between">
-                <div className={label}>Scenario confirmed</div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#22C55E]">
-                  <CheckIcon size={10} /> Ready
-                </span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-[12px] font-semibold text-[#F7F8FA]">{selectedScenario.player1}</span>
-                  <span className="font-head text-[12px] font-bold text-[#D4FF3A]">{selectedScenario.pointScore}</span>
-                </div>
-                <span className="text-[11px] text-[#C9CFDA]/60">vs {selectedScenario.player2}</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}>{selectedScenario.surface}</span>
-                <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60 text-[10px]`}>{selectedScenario.round}</span>
-                <span className={`${pill} text-[10px] ${
-                  selectedScenario.pressureState.includes("AGAINST")
-                    ? "border-[#EF4444]/30 bg-[#EF4444]/08 text-[#EF4444]/80"
-                    : selectedScenario.pressureState.includes("FOR")
-                    ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]/80"
-                    : "border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/60"
-                }`}>
-                  {pressureLabel(selectedScenario.pressureState)}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 pt-1">
-                {[
-                  { l: "1st srv", v: Math.round(selectedScenario.firstSvcPct * 100) + "%" },
-                  { l: "2nd srv", v: Math.round(selectedScenario.secondSvcPct * 100) + "%" },
-                  { l: "Svc pts", v: Math.round(selectedScenario.svcPct * 100) + "%" },
-                  { l: "Rtn pts", v: Math.round(selectedScenario.rtnPct * 100) + "%" },
-                ].map((s) => (
-                  <div key={s.l} className="rounded-[8px] bg-white/[0.03] p-2 text-center">
-                    <div className="font-head text-[12px] font-bold text-[#F7F8FA]">{s.v}</div>
-                    <div className={`${label} mt-0.5`}>{s.l}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── CENTER STAGE ─────────────────────────────────────── */}
-        <div className="flex flex-col gap-4">
-
-          {/* Empty state */}
-          {!selectedScenario && currentStep === "scenario" && (
-            <div className={`${card} items-center justify-center min-h-[300px]`}>
-              <TacticsIcon size={32} className="text-[#C9CFDA]/20" />
-              <div className="text-center">
-                <p className="font-head text-[15px] font-semibold text-[#C9CFDA]/50">
-                  Select a scenario to begin
-                </p>
-                <p className="text-[12px] text-[#C9CFDA]/30 mt-1">
-                  Choose one of the match situations from the left panel
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Prediction step */}
-          {currentStep === "predict" && selectedScenario && !prediction && (
-            <div className={card}>
-              <div className={label}>Step 2 — Calculate probability</div>
-              <div className="flex flex-col items-center gap-4 py-6">
-                <AIIcon size={40} className="text-[#D4FF3A]/40" />
-                <div className="text-center">
-                  <p className="font-head text-[16px] font-semibold text-[#F7F8FA]">
-                    Ready to predict
-                  </p>
-                  <p className="text-[12px] text-[#C9CFDA]/50 mt-1 max-w-xs">
-                    Model will compute calibrated next-point win probability using
-                    match state, stats and pressure context
-                  </p>
-                </div>
-              </div>
-              <div className="mt-auto">{renderPrimaryCTA()}</div>
-            </div>
-          )}
-
-          {/* Probability hero — visible from simulate onwards */}
-          {prediction && stepIndex >= STEP_INDEX["simulate"] && (
-            <div className={card}>
-              <ProbabilityHero
-                probability={prediction.probability}
-                confidence={prediction.tacticalConfidence}
-                pressureState={prediction.pressureState}
-                momentumState={prediction.momentumState}
-                isDemoFallback={prediction.isDemoFallback}
-              />
-            </div>
-          )}
-
-          {/* Tactical recommendation — simulate step */}
-          {prediction && stepIndex >= STEP_INDEX["simulate"] && (
-            <div className={card}>
-              <TacticalRecommendationCard
-                patternName={prediction.patternName}
-                uplift={14}
-                riskLevel={prediction.riskLevel}
-                confidence={prediction.tacticalConfidence}
-                explanation={prediction.tacticalExplanation || prediction.tacticalV3?.tacticalRationaleV3 || "Tactical explanation not available."}
-                strategicPriority={prediction.tacticalV3?.strategicPriority}
-              />
-            </div>
-          )}
-
-          {/* Pattern alternatives — simulate step */}
-          {prediction && (currentStep === "simulate" || stepIndex > STEP_INDEX["simulate"]) && (
-            <div className={card}>
-              <PatternAlternativesCard
-                patterns={patterns}
-                selectedPatternId={selectedPattern?.id || null}
-                onSelect={(p) => {
-                  selectPattern(p);
-                }}
-              />
-            </div>
-          )}
-
-          {/* Register outcome — register step */}
-          {(currentStep === "register" || stepIndex > STEP_INDEX["register"]) && !registeredOutcome && (
-            <div className={card}>
-              <RegisterOutcomePanel onRegister={registerOutcome} />
-            </div>
-          )}
-
-          {/* Outcome registered confirmation */}
-          {registeredOutcome && stepIndex >= STEP_INDEX["explain"] && (
-            <div className="rounded-[16px] border border-[#22C55E]/20 bg-[#22C55E]/[0.04] p-4 flex items-center gap-3">
-              <CheckIcon size={20} className="text-[#22C55E] shrink-0" />
-              <div>
-                <div className="text-[12px] font-semibold text-[#22C55E]">
-                  Outcome registered
-                </div>
-                <div className="text-[11px] text-[#C9CFDA]/60 mt-0.5">
-                  {registeredOutcome.actualPattern} · {registeredOutcome.winner === "player" ? "WON" : "LOST"} ·{" "}
-                  {registeredOutcome.rallyLength} rally · {registeredOutcome.finishType.replace(/_/g, " ")}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Explain step CTA */}
-          {currentStep === "explain" && !postPointExplanation && (
-            <div className={card}>
-              <div className={label}>Step 5 — Post-point explanation</div>
-              <p className="text-[12px] text-[#C9CFDA]/60">
-                The model will compare pre-point prediction vs actual outcome and
-                compute the probability swing.
-              </p>
-              {renderPrimaryCTA()}
-            </div>
-          )}
-
-          {/* Post-point explanation */}
-          {postPointExplanation && stepIndex >= STEP_INDEX["explain"] && (
-            <div className={card}>
-              <div className={label}>Post-point explanation</div>
-              <PostPointExplanationPanel {...postPointExplanation} />
-            </div>
-          )}
-
-          {/* Export step CTA */}
-          {currentStep === "export" && !insights && (
-            <div className={card}>
-              <div className={label}>Step 6 — Integration brief</div>
-              <p className="text-[12px] text-[#C9CFDA]/60">
-                Generate the complete Ally-ready payload with Fan, Coach, Media and
-                API insights — ready to copy or integrate.
-              </p>
-              {renderPrimaryCTA()}
-            </div>
-          )}
-
-          {/* Integration brief */}
-          {insights && (
-            <div className={card}>
-              <IntegrationBrief
-                insights={insights}
-                scenario={selectedScenario}
-                prediction={prediction}
-                postPoint={postPointExplanation}
-                onCopy={copyBrief}
-                copied={briefCopied}
-              />
-            </div>
-          )}
-
-          {/* Step CTA for scenario/simulate/register when not yet in that sub-form */}
-          {(currentStep === "scenario" && selectedScenario) && (
-            <div className={card}>
-              {renderPrimaryCTA()}
-            </div>
-          )}
-        </div>
-
-        {/* ── RIGHT RAIL ───────────────────────────────────────── */}
-        <div className="flex flex-col gap-4">
-
-          {/* Output mode switch */}
-          <div className={cardSm}>
-            <div className={label}>Output mode</div>
-            <OutputModeSwitch mode={outputMode} onChange={setOutputMode} />
-            <InsightDisplay mode={outputMode} insights={insights} />
-          </div>
-
-          {/* API payload preview */}
-          {prediction && (
-            <CollapsiblePanel title="Ally/API payload preview">
-              <pre className="text-[10px] text-[#D4FF3A]/70 leading-relaxed font-mono overflow-auto max-h-48">
-                {JSON.stringify(
-                  {
-                    point_win_probability: prediction.probability,
-                    calibrated: true,
-                    pre_point_safe: true,
-                    tactical_call: prediction.tacticalCall,
-                    tactical_confidence: prediction.tacticalConfidence,
-                    risk_level: prediction.riskLevel,
-                    momentum_state: prediction.momentumState,
-                    pressure_state: prediction.pressureState,
-                    pattern_name: prediction.patternName,
-                    is_demo_fallback: prediction.isDemoFallback,
-                  },
-                  null,
-                  2
+                <BackendStatusBadge status={backendStatus} />
+                {liveMode && (
+                  <span className={`${pill} border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E] text-[10px]`}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+                    Live Mode
+                  </span>
                 )}
-              </pre>
-            </CollapsiblePanel>
-          )}
-
-          {/* Model metadata */}
-          {prediction && (
-            <CollapsiblePanel title="Model metadata">
-              <div className="flex flex-col gap-2">
-                {[
-                  { k: "Model", v: "XGBoost calibrated v3" },
-                  { k: "Training data", v: "ATP matches 2017–2024" },
-                  {
-                    k: "Calibration",
-                    v: "Platt scaling · isotonic regression",
-                  },
-                  { k: "Pre-point safe", v: "✓ No post-point leakage" },
-                  { k: "Features", v: "Stats · momentum · flags · tags" },
-                ].map((m) => (
-                  <div key={m.k} className="flex justify-between items-start gap-2">
-                    <span className="text-[10px] text-[#C9CFDA]/40">{m.k}</span>
-                    <span className="text-[10px] text-[#C9CFDA]/70 text-right">{m.v}</span>
-                  </div>
-                ))}
+                {liveMode && hasSavedMatch && (
+                  <span className={`${pill} border-white/[0.06] bg-white/[0.02] text-[#C9CFDA]/30 text-[9px]`}>
+                    💾 auto-saved
+                  </span>
+                )}
               </div>
-            </CollapsiblePanel>
-          )}
-
-          {/* Feature completeness */}
-          <div className={cardSm}>
-            <div className={label}>Feature completeness</div>
-            <div className="flex flex-col gap-2">
-              {[
-                { f: "Pre-point probability", done: true },
-                { f: "Tactical recommendation", done: true },
-                { f: "Pattern alternatives", done: true },
-                { f: "Expected uplift", done: true },
-                { f: "Post-point explanation", done: stepIndex >= STEP_INDEX["explain"] },
-                { f: "Insight feed (4 modes)", done: !!insights },
-                { f: "Integration brief", done: !!insights },
-                { f: "Ally/API payload", done: !!insights },
-              ].map((item) => (
-                <div key={item.f} className="flex items-center gap-2">
-                  <span
-                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0 ${
-                      item.done
-                        ? "bg-[#22C55E]/20 text-[#22C55E]"
-                        : "bg-white/[0.04] text-[#C9CFDA]/20"
-                    }`}
-                  >
-                    {item.done ? <CheckIcon size={9} /> : null}
-                  </span>
-                  <span
-                    className={`text-[11px] ${
-                      item.done ? "text-[#C9CFDA]/70" : "text-[#C9CFDA]/30"
-                    }`}
-                  >
-                    {item.f}
-                  </span>
+              {!liveMode && (
+                <>
+                  <h2 className="font-head text-[20px] sm:text-[24px] font-bold text-[#F7F8FA] leading-tight tracking-tight">
+                    ATP Tactical Intelligence Demo
+                  </h2>
+                  <p className="text-[12px] text-[#C9CFDA]/60 max-w-lg leading-relaxed">
+                    Pre-point probability, tactical simulation and post-point explainability
+                  </p>
+                </>
+              )}
+              {liveMode && selectedScenario && (
+                <div className="flex flex-col gap-2">
+                  {/* ScoreBoard — TV broadcast style */}
+                  <div className="flex flex-col gap-0">
+                    {/* Player 1 row */}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[13px] font-head font-bold min-w-[100px] truncate ${
+                        matchState.server === 1 ? "text-[#D4FF3A]" : "text-[#F7F8FA]"
+                      }`}>
+                        {matchState.server === 1 && "● "}{selectedScenario.player1}
+                      </span>
+                      {scoringDisplay.setScoresArray.map(([g1], i) => (
+                        <span key={i} className={`font-head text-[13px] font-bold w-5 text-center ${
+                          i < matchState.completedSets.length
+                            ? matchState.completedSets[i][0] > matchState.completedSets[i][1]
+                              ? "text-[#F7F8FA]"
+                              : "text-[#C9CFDA]/40"
+                            : "text-[#F7F8FA]"
+                        }`}>
+                          {g1}
+                        </span>
+                      ))}
+                      {!matchState.matchOver && (
+                        <span className="font-head text-[13px] font-bold text-[#D4FF3A] ml-1 w-5 text-center">
+                          {matchState.points[0] <= 3 && !matchState.isTiebreak
+                            ? ["0","15","30","40"][matchState.points[0]]
+                            : matchState.points[0]}
+                        </span>
+                      )}
+                    </div>
+                    {/* Player 2 row */}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[13px] font-head font-bold min-w-[100px] truncate ${
+                        matchState.server === 2 ? "text-[#D4FF3A]" : "text-[#F7F8FA]"
+                      }`}>
+                        {matchState.server === 2 && "● "}{selectedScenario.player2}
+                      </span>
+                      {scoringDisplay.setScoresArray.map(([, g2], i) => (
+                        <span key={i} className={`font-head text-[13px] font-bold w-5 text-center ${
+                          i < matchState.completedSets.length
+                            ? matchState.completedSets[i][1] > matchState.completedSets[i][0]
+                              ? "text-[#F7F8FA]"
+                              : "text-[#C9CFDA]/40"
+                            : "text-[#F7F8FA]"
+                        }`}>
+                          {g2}
+                        </span>
+                      ))}
+                      {!matchState.matchOver && (
+                        <span className="font-head text-[13px] font-bold text-[#D4FF3A] ml-1 w-5 text-center">
+                          {matchState.points[1] <= 3 && !matchState.isTiebreak
+                            ? ["0","15","30","40"][matchState.points[1]]
+                            : matchState.points[1]}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Context row */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/50 text-[10px]`}>
+                      {selectedScenario.surface}
+                    </span>
+                    <span className={`${pill} border-white/[0.08] bg-white/[0.03] text-[#C9CFDA]/50 text-[10px]`}>
+                      {selectedScenario.round}
+                    </span>
+                    <span className="text-[10px] text-[#C9CFDA]/30">
+                      Set {matchState.setNumber} · Pt {matchState.totalPoints + 1}
+                    </span>
+                    {scoringFlags.pressureState !== "NEUTRAL" && scoringFlags.pressureState !== "MATCH_OVER" && (
+                      <span className={`${pill} text-[10px] ${
+                        scoringFlags.pressureState.includes("AGAINST")
+                          ? "border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444]"
+                          : scoringFlags.pressureState.includes("MATCH_POINT")
+                          ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/10 text-[#D4FF3A]"
+                          : "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]"
+                      }`}>
+                        {scoringFlags.pressureState.replace(/_/g, " ")}
+                      </span>
+                    )}
+                    {totalPoints > 0 && (
+                      <span className="text-[10px] text-[#C9CFDA]/30">
+                        {wonPoints}W-{totalPoints - wonPoints}L ({winRate}%)
+                      </span>
+                    )}
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
+          <div className="flex items-center gap-2 shrink-0">
+            {liveMode && (
+              <button
+                onClick={openWizard}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-white/[0.15] hover:text-[#F7F8FA] transition-all"
+              >
+                Edit setup
+              </button>
+            )}
+            {/* Fan mode toggle */}
+            {liveMode && (
+              <button
+                onClick={() => setFanMode(!fanMode)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border text-[11px] transition-all ${
+                  fanMode
+                    ? "border-[#8B5CF6]/40 bg-[#8B5CF6]/10 text-[#8B5CF6]"
+                    : "border-white/[0.08] bg-white/[0.02] text-[#C9CFDA]/60 hover:border-white/[0.15] hover:text-[#F7F8FA]"
+                }`}
+                title={fanMode ? "Switch to Coach mode (tagging)" : "Switch to Fan mode (view-only, receives updates)"}
+              >
+                {fanMode ? "📺 Fan" : "🎾 Coach"}
+              </button>
+            )}
+            {/* Export buttons (live mode with data) */}
+            {liveMode && pointHistory.length > 0 && (
+              <>
+                <button
+                  onClick={exportCSV}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-[#D4FF3A]/30 hover:text-[#D4FF3A] transition-all"
+                  title="Export match data as CSV"
+                >
+                  ⬇ CSV
+                </button>
+                <button
+                  onClick={exportJSON}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-[#D4FF3A]/30 hover:text-[#D4FF3A] transition-all"
+                  title="Export match data as JSON"
+                >
+                  ⬇ JSON
+                </button>
+              </>
+            )}
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-white/[0.15] hover:text-[#F7F8FA] transition-all"
+            >
+              <RefreshIcon size={12} />
+              Reset
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* ── MAIN CONTENT ──────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col gap-4 mt-4">
+
+        {/* ────── SETUP MODE (before live) ──────────────────── */}
+        {!liveMode && !selectedScenario && (
+          <div className={`${card} items-center justify-center min-h-[400px]`}>
+            <div className="flex flex-col items-center gap-5">
+              <div className="w-20 h-20 rounded-full bg-[#D4FF3A]/[0.08] flex items-center justify-center">
+                <AIIcon size={36} className="text-[#D4FF3A]/60" />
+              </div>
+              <div className="text-center">
+                <h3 className="font-head text-[18px] font-bold text-[#F7F8FA]">
+                  Start a new tactical analysis
+                </h3>
+                <p className="text-[13px] text-[#C9CFDA]/50 mt-2 max-w-sm leading-relaxed">
+                  Set up the match scenario, then tag points in real-time with
+                  AI predictions updating after every point.
+                </p>
+              </div>
+              <button
+                onClick={openWizard}
+                className="flex items-center gap-2.5 px-6 py-3 rounded-[14px] bg-[#D4FF3A] text-[#0B1220] text-[14px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.02] transition-all shadow-[0_6px_24px_rgba(212,255,58,0.3)]"
+              >
+                <TacticsIcon size={18} />
+                Set Up Match
+              </button>
+              <div className="flex flex-col items-center gap-2 mt-2">
+                <span className="text-[10px] text-[#C9CFDA]/30 uppercase tracking-widest">or jump to a preset</span>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {scenarios.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setForm(scenarioToForm(s));
+                        setActivePresetId(s.id);
+                        openWizard();
+                      }}
+                      className="px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-[#D4FF3A]/30 hover:text-[#F7F8FA] transition-all"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Loading state (predicting) ────────────────────── */}
+        {selectedScenario && !prediction && loading && (
+          <div className={`${card} items-center justify-center min-h-[200px]`}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full border-[3px] border-[#D4FF3A]/10 border-t-[#D4FF3A] animate-spin" />
+                <AIIcon size={24} className="absolute inset-0 m-auto text-[#D4FF3A]/60" />
+              </div>
+              <p className="text-[13px] text-[#C9CFDA]/60">Calculating prediction…</p>
+            </div>
+          </div>
+        )}
+
+        {/* ────── LIVE MODE ────────────────────────────────── */}
+        {liveMode && (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+
+            {/* ── LEFT: Prediction + Tactical ────────────── */}
+            <div className="flex flex-col gap-4">
+
+               {/* Prediction hero */}
+              {prediction && (
+                <div className={card} style={!prediction.predictionUnavailable ? probGlowBorder(prediction.probability) : {}}>
+                  {prediction.predictionUnavailable ? (
+                    <div className="flex flex-col items-center text-center gap-3 py-4 px-2 w-full">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full border border-[#E9A23B]/30 bg-[#E9A23B]/05 text-[#E9A23B] animate-pulse text-[20px]">
+                        ⚠️
+                      </div>
+                      <div>
+                        <h4 className="font-head text-[15px] font-bold text-[#F7F8FA]">
+                          AI Prediction Offline
+                        </h4>
+                        <p className="text-[12px] text-[#C9CFDA]/60 mt-1 max-w-[340px]">
+                          La predizione tattica real-time richiede una connessione attiva col backend.
+                        </p>
+                      </div>
+                      <div className="text-[11px] text-[#22C55E]/90 bg-[#22C55E]/05 border border-[#22C55E]/10 rounded-lg py-1.5 px-3 max-w-[360px] leading-relaxed">
+                        🟢 <strong>Scoring Engine Locale Attivo</strong>: il tracciamento del punteggio, le statistiche ed export CSV/JSON continuano a funzionare regolarmente offline a bordo campo.
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 pt-2.5 border-t border-white/[0.04] w-full justify-center">
+                        <span className="text-[11px] text-[#C9CFDA]/50">Abilita simulazione offline:</span>
+                        <button
+                          onClick={() => {
+                            setDemoSimulationMode(true);
+                            setTimeout(() => calculatePrediction(), 50);
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-semibold rounded-md border border-[#D4FF3A]/20 bg-[#D4FF3A]/05 text-[#D4FF3A] hover:bg-[#D4FF3A]/10 transition-all"
+                        >
+                          Attiva Demo
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      key={Math.round(prediction.probability * 100)}
+                      className="prob-hero-enter flex flex-col items-center gap-2 py-1 w-full"
+                    >
+                      {prediction.isDemoFallback && (
+                        <div className="flex items-center gap-2">
+                          <span className={`${pill} border-[#E9A23B]/30 bg-[#E9A23B]/08 text-[#E9A23B]/80 text-[10px]`}>
+                            Demo fallback
+                          </span>
+                          <button
+                            onClick={() => {
+                              setDemoSimulationMode(false);
+                              setTimeout(() => calculatePrediction(), 50);
+                            }}
+                            className="text-[9px] underline text-[#C9CFDA]/40 hover:text-[#C9CFDA]/60 transition-all"
+                          >
+                            Disattiva simulazione
+                          </button>
+                        </div>
+                      )}
+                      {/* Big probability number */}
+                      <div className="flex items-baseline gap-1">
+                        <span
+                          className="font-head text-[72px] leading-none font-bold tracking-tight transition-colors duration-500"
+                          style={{ color: probColor(prediction.probability) }}
+                        >
+                          {Math.round(prediction.probability * 100)}
+                        </span>
+                        <span className="font-head text-[30px] text-[#C9CFDA]/35">%</span>
+                      </div>
+                      <span
+                        className="text-[11px] font-semibold tracking-[0.18em] uppercase -mt-1 transition-colors duration-500"
+                        style={{ color: probColor(prediction.probability), opacity: 0.65 }}
+                      >
+                        Next-point win probability
+                      </span>
+                      {/* Probability gauge bar */}
+                      <div className="w-full max-w-[280px] mx-auto mt-1.5">
+                        <div className="relative h-[7px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                          {/* Zone backgrounds */}
+                          <div className="absolute inset-0" style={{
+                            background: "linear-gradient(to right, rgba(239,68,68,0.18) 35%, rgba(233,162,59,0.18) 35% 65%, rgba(212,255,58,0.18) 65%)"
+                          }} />
+                          {/* Active fill */}
+                          <div
+                            className="absolute left-0 top-0 h-full rounded-full prob-bar-fill"
+                            style={{
+                              width: `${Math.round(prediction.probability * 100)}%`,
+                              background: probColor(prediction.probability),
+                              boxShadow: `0 0 8px ${probColor(prediction.probability)}50`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between mt-1 text-[8px] tabular-nums" style={{ color: "rgba(201,207,218,0.22)" }}>
+                          <span>0</span>
+                          <span>Neutral 50</span>
+                          <span>100</span>
+                        </div>
+                      </div>
+                      {/* Status pills */}
+                      <div className="flex flex-wrap justify-center gap-2 mt-0.5">
+                        <span className={`${pill} ${confidenceColor(prediction.tacticalConfidence)}`}>
+                          {prediction.tacticalConfidence}
+                        </span>
+                        <span className={`${pill} ${
+                          prediction.momentumState === "HOT"
+                            ? "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]"
+                            : prediction.momentumState === "COLD"
+                            ? "border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444]"
+                            : "border-white/10 bg-white/[0.04] text-[#C9CFDA]/60"
+                        }`}>
+                          {prediction.momentumState === "HOT" ? "🔥 " : prediction.momentumState === "COLD" ? "❄ " : ""}
+                          {prediction.momentumState}
+                        </span>
+                        <span className={`${pill} ${
+                          prediction.pressureState.includes("AGAINST")
+                            ? "border-[#EF4444]/30 bg-[#EF4444]/10 text-[#EF4444]"
+                            : prediction.pressureState.includes("FOR")
+                            ? "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]"
+                            : "border-white/10 bg-white/[0.04] text-[#C9CFDA]/60"
+                        }`}>
+                          {pressureLabel(prediction.pressureState)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tactical recommendation */}
+              {prediction && (
+                <div className="rounded-[16px] border border-[#D4FF3A]/20 bg-[#D4FF3A]/[0.04] flex flex-col gap-2 relative overflow-hidden" style={{ padding: "16px 16px 16px 22px" }}>
+                  {/* Left accent bar */}
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full" style={{ background: "rgba(212,255,58,0.65)" }} />
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className={label}>Recommended pattern</div>
+                      <div className="font-head text-[15px] font-bold text-[#F7F8FA] mt-0.5 leading-snug">
+                        {prediction.patternName}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`${pill} ${riskColor(prediction.riskLevel)}`}>
+                        {prediction.riskLevel}
+                      </span>
+                      {prediction.tacticalV3?.strategicPriority && (
+                        <span className={`${pill} ${
+                          prediction.tacticalV3.strategicPriority === "EXPLOIT"
+                            ? "border-[#22C55E]/30 bg-[#22C55E]/08 text-[#22C55E]/80"
+                            : prediction.tacticalV3.strategicPriority === "PROTECT"
+                            ? "border-[#E9A23B]/30 bg-[#E9A23B]/08 text-[#E9A23B]/80"
+                            : "border-[#3B82F6]/30 bg-[#3B82F6]/08 text-[#3B82F6]/80"
+                        }`}>
+                          {prediction.tacticalV3.strategicPriority}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[12px] text-[#C9CFDA]/65 leading-relaxed">
+                    {prediction.tacticalExplanation || prediction.tacticalV3?.tacticalRationaleV3 || "—"}
+                  </p>
+                </div>
+              )}
+
+              {/* Pattern alternatives */}
+              {prediction && !prediction.predictionUnavailable && patterns && patterns.length > 0 && (
+                <div className={cardSm}>
+                  <div className={label}>Tactical alternatives</div>
+                  <div className="flex flex-col gap-1.5">
+                    {patterns.map((p, i) => (
+                      <div
+                        key={p.id}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-[10px] border transition-all ${
+                          i === 0
+                            ? "border-[#D4FF3A]/10 bg-[#D4FF3A]/[0.025]"
+                            : "border-white/[0.04] bg-white/[0.01]"
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold font-head tabular-nums shrink-0" style={{ color: "rgba(201,207,218,0.25)" }}>
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11px] font-semibold text-[#C9CFDA]/75 truncate leading-tight">{p.name}</div>
+                          <div className="text-[9px] text-[#C9CFDA]/35 mt-0.5 truncate">{p.description}</div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`font-head text-[12px] font-bold tabular-nums ${upliftColor(p.uplift)}`}>
+                            {p.uplift > 0 ? "+" : ""}{p.uplift}pp
+                          </span>
+                          <span className={`${pill} text-[9px] ${riskColor(p.risk)}`}>{p.risk}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Model Transparency Info */}
+              {prediction && prediction.modelMetadata && !prediction.predictionUnavailable && (
+                <div className="rounded-[12px] border border-white/[0.04] bg-white/[0.01] p-3 flex flex-col gap-1.5 transition-all">
+                  <div className="flex items-center justify-between text-[#C9CFDA]/40 text-[10px] font-head uppercase tracking-wider font-semibold">
+                    <div className="flex items-center gap-1">
+                      <span>🤖 MODEL STATS</span>
+                    </div>
+                    <span className="text-[#D4FF3A]/80 font-bold">XGBoost v{prediction.modelMetadata.version}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="bg-white/[0.02] border border-white/[0.03] p-1.5 rounded-lg flex flex-col">
+                      <span className="text-[#C9CFDA]/40 text-[9px] uppercase tracking-wide">Calibrazione</span>
+                      <span className="text-[#C9CFDA]/80 font-semibold mt-0.5 capitalize">
+                        {prediction.modelMetadata.calibration_method} Regression
+                      </span>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/[0.03] p-1.5 rounded-lg flex flex-col">
+                      <span className="text-[#C9CFDA]/40 text-[9px] uppercase tracking-wide">Validazione</span>
+                      <span className="text-[#C9CFDA]/80 font-semibold mt-0.5">
+                        Temporal Match Split
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[10px] text-[#C9CFDA]/50 mt-1 border-t border-white/[0.03] pt-1.5 justify-between items-center">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>Brier: <strong className="text-[#F7F8FA]">{prediction.modelMetadata.brier_score?.toFixed(3)}</strong></span>
+                      <span className="text-white/[0.15]">|</span>
+                      <span>AUC: <strong className="text-[#F7F8FA]">{prediction.modelMetadata.roc_auc?.toFixed(3)}</strong></span>
+                      <span className="text-white/[0.15]">|</span>
+                      <span>Acc: <strong className="text-[#F7F8FA]">{((prediction.modelMetadata.accuracy ?? 0) * 100).toFixed(1)}%</strong></span>
+                    </div>
+                    {/* Click-to-expand info — works on tablet (no hover needed) */}
+                    <button
+                      onClick={() => setModelStatsOpen(v => !v)}
+                      className={`flex items-center justify-center w-5 h-5 rounded-full border transition-all text-[9px] shrink-0 ${
+                        modelStatsOpen
+                          ? "border-[#D4FF3A]/40 bg-[#D4FF3A]/10 text-[#D4FF3A]"
+                          : "border-white/[0.12] bg-white/[0.04] text-[#C9CFDA]/50 hover:bg-white/[0.08]"
+                      }`}
+                      aria-label="Mostra info metriche"
+                    >
+                      ℹ
+                    </button>
+                  </div>
+                  {/* Expandable info panel */}
+                  {modelStatsOpen && (
+                    <div className="mt-2 rounded-[10px] border border-white/[0.06] bg-black/20 p-3 text-[11px] text-[#C9CFDA]/75 leading-relaxed">
+                      <div className="font-head font-bold text-[#F7F8FA] text-[12px] mb-2">Metriche di Credibilità AI</div>
+                      <p className="mb-2">
+                        <strong className="text-[#C9CFDA]/90">Brier Score {prediction.modelMetadata.brier_score?.toFixed(3)}</strong> — Scala 0–0.25 (0 = perfetto, 0.25 = previsione casuale su eventi bilanciati). Il modello supera del {Math.round(((0.25 - (prediction.modelMetadata.brier_score ?? 0.25)) / 0.25) * 100)}% la soglia casuale.
+                      </p>
+                      <p className="mb-2">
+                        <strong className="text-[#C9CFDA]/90">ROC AUC {prediction.modelMetadata.roc_auc?.toFixed(3)}</strong> — Misura la capacità discriminativa. 0.5 = casuale, 1.0 = perfetto. Il valore attuale indica un modello significativamente predittivo.
+                      </p>
+                      <p>
+                        <strong className="text-[#C9CFDA]/90">Temporal Match Split</strong> — Il test set contiene partite intere mai viste in training. Elimina il data leakage punto-per-punto e simula un utilizzo reale in campo.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Loading next prediction */}
+              {!prediction && selectedScenario && (
+                <div className={`${card} items-center justify-center py-10`}>
+                  <div className="flex items-center gap-3">
+                    <span className="w-5 h-5 border-2 border-[#D4FF3A]/30 border-t-[#D4FF3A] rounded-full animate-spin" />
+                    <span className="text-[13px] text-[#C9CFDA]/50">Computing next prediction…</span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Infosys Momentum Strip ── */}
+              {selectedScenario && (
+                <InfosysMomentumStrip
+                  beats={[...pointHistory].reverse().map(pt => ({
+                    id: pt.id,
+                    pointNumber: pt.pointNumber,
+                    won: pt.won,
+                    rallyLength: pt.outcome.rallyLength,
+                    probability: pt.prediction.probability,
+                    hasPressure: pt.prediction.pressureState !== "NEUTRAL",
+                    swing: pt.swing,
+                    pointScore: pt.pointScore,
+                    finishType: pt.outcome.finishType,
+                  }))}
+                  player1={selectedScenario.player1}
+                  player2={selectedScenario.player2}
+                />
+              )}
+
+              {/* ── ATP Match Statistics ── */}
+              {totalPoints > 0 && selectedScenario && (
+                <div className={card} style={{ gap: "16px" }}>
+                  {/* Header player names */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-head text-[13px] font-bold text-[#D4FF3A] truncate max-w-[38%] uppercase tracking-wide">
+                      {selectedScenario.player1.split(" ").slice(-1)[0]}
+                    </span>
+                    <span className="text-[8px] uppercase tracking-[0.28em] font-bold shrink-0" style={{ color: "rgba(201,207,218,0.35)" }}>
+                      Match Statistics
+                    </span>
+                    <span className="font-head text-[13px] font-bold text-[#C9CFDA]/50 truncate max-w-[38%] uppercase tracking-wide text-right">
+                      {selectedScenario.player2.split(" ").slice(-1)[0]}
+                    </span>
+                  </div>
+
+                  <div className="h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
+
+                  {/* Stat rows */}
+                  <div className="flex flex-col gap-3.5">
+                    <StatBar label="Points Won" p1={atpStats.p1Won} p2={atpStats.p2Won} />
+                    {(atpStats.p1Win + atpStats.p2Win) > 0 && (
+                      <StatBar label="Winners" p1={atpStats.p1Win} p2={atpStats.p2Win} />
+                    )}
+                    {(atpStats.p1UE + atpStats.p2UE) > 0 && (
+                      <StatBar label="Unforced Errors" p1={atpStats.p1UE} p2={atpStats.p2UE} />
+                    )}
+                    {atpStats.p1SvcPct !== null && atpStats.p2SvcPct !== null && (
+                      <StatBar
+                        label="Serve Pts Won"
+                        p1={atpStats.p1SvcPct}
+                        p2={atpStats.p2SvcPct}
+                        fmt={(v) => `${v}%`}
+                      />
+                    )}
+                    {(atpStats.p1Long + atpStats.p2Long) > 0 && (
+                      <StatBar label="Long Rally Pts" p1={atpStats.p1Long} p2={atpStats.p2Long} />
+                    )}
+                  </div>
+
+                  {/* Points total footer */}
+                  <div className="flex items-center justify-center gap-2 pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+                    <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(201,207,218,0.25)" }}>
+                      {totalPoints} {totalPoints === 1 ? "point" : "points"} played
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── RIGHT: Point History + Sidebar ─────────── */}
+            <div className="flex flex-col gap-4">
+
+              {/* Point history feed */}
+              {pointHistory.length > 0 && (
+                <div className={cardSm}>
+                  <div className="flex items-center justify-between">
+                    <span className={label}>Point history</span>
+                    <span className="text-[10px] text-[#C9CFDA]/30">{totalPoints} pts</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto scrollbar-hide">
+                    {pointHistory.slice(0, 30).map((pt) => (
+                      <div
+                        key={pt.id}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-[8px] border transition-all ${
+                          pt.won
+                            ? "border-[#22C55E]/15 bg-[#22C55E]/[0.04]"
+                            : "border-[#EF4444]/15 bg-[#EF4444]/[0.04]"
+                        }`}
+                      >
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                          pt.won ? "bg-[#22C55E]/20 text-[#22C55E]" : "bg-[#EF4444]/20 text-[#EF4444]"
+                        }`}>
+                          {pt.won ? "W" : "L"}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-semibold text-[#C9CFDA]/70">
+                                #{pt.pointNumber}
+                              </span>
+                              {pt.pointScore && (
+                                <span className="text-[9px] font-mono text-[#C9CFDA]/30">
+                                  {pt.pointScore}
+                                </span>
+                              )}
+                            </div>
+                            <span className={`font-head text-[11px] font-bold ${
+                              pt.swing >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"
+                            }`}>
+                              {pt.swing >= 0 ? "+" : ""}{pt.swing}pp
+                            </span>
+                          </div>
+                          <div className="text-[9px] text-[#C9CFDA]/35 truncate">
+                            {pt.outcome.finishType.replace(/_/g, " ")} · {pt.outcome.rallyLength}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Output mode */}
+              <div className={cardSm}>
+                <div className={label}>Output mode</div>
+                <OutputModeSwitch mode={outputMode} onChange={setOutputMode} />
+                <InsightDisplay mode={outputMode} insights={insights} />
+              </div>
+
+              {/* API payload */}
+              {prediction && (
+                <CollapsiblePanel title="Ally/API payload">
+                  <pre className="text-[10px] text-[#D4FF3A]/70 leading-relaxed font-mono overflow-auto max-h-48">
+                    {JSON.stringify({
+                      point_win_probability: prediction.probability,
+                      calibrated: true,
+                      pre_point_safe: true,
+                      tactical_call: prediction.tacticalCall,
+                      tactical_confidence: prediction.tacticalConfidence,
+                      risk_level: prediction.riskLevel,
+                      momentum_state: prediction.momentumState,
+                      pressure_state: prediction.pressureState,
+                      pattern_name: prediction.patternName,
+                      is_demo_fallback: prediction.isDemoFallback,
+                      points_tagged: totalPoints,
+                    }, null, 2)}
+                  </pre>
+                </CollapsiblePanel>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      {/* ── GAME/SET EVENT TOAST ────────────────────────── */}
+      {gameEvent && (
+        <div className="fixed bottom-[140px] left-1/2 -translate-x-1/2 z-[95] swing-toast">
+          <div className="flex items-center gap-2 px-5 py-2.5 rounded-[14px] border border-[#8B5CF6]/30 bg-[#8B5CF6]/15 text-[#D4FF3A] shadow-lg"
+            style={{ backdropFilter: "blur(12px)" }}
+          >
+            <span className="font-head text-[13px] font-bold tracking-wide">
+              {gameEvent}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── QUICK TAG BAR (sticky bottom, live+coach mode only) ──── */}
+      {liveMode && prediction && !matchState.matchOver && !fanMode && (
+        <QuickTagBar
+          onTag={tagAndAdvance}
+          onUndo={undoLastPoint}
+          canUndo={canUndo}
+          loading={loading}
+          pointNumber={matchState.totalPoints + 1}
+          patternName={prediction.patternName}
+          lastSwing={lastSwing}
+          isServing={matchState.server === 1}
+          serverName={matchState.server === 1 ? selectedScenario?.player1 : selectedScenario?.player2}
+        />
+      )}
+
+      {/* ── FAN MODE BAR (view only) ────────────────────────── */}
+      {liveMode && fanMode && !matchState.matchOver && (
+        <div className="quick-tag-bar">
+          <div className="max-w-4xl mx-auto flex items-center justify-center gap-3 py-2">
+            <span className="text-[14px]">📺</span>
+            <span className="text-[12px] text-[#8B5CF6] font-semibold">Fan Mode</span>
+            <span className="text-[11px] text-[#C9CFDA]/40">
+              Viewing live updates from coach tab
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── MATCH OVER ───────────────────────────────────── */}
+      {liveMode && matchState.matchOver && (
+        <div className="quick-tag-bar">
+          <div className="max-w-4xl mx-auto flex items-center justify-center gap-3 py-2">
+            <span className="text-[16px]">🏆</span>
+            <span className="font-head text-[14px] font-bold text-[#D4FF3A]">
+              Match complete — {matchState.winner === 1 ? selectedScenario?.player1 : selectedScenario?.player2} wins!
+            </span>
+            <span className="text-[12px] text-[#C9CFDA]/50">{scoringDisplay.fullScore}</span>
+            <button
+              onClick={handleReset}
+              className="ml-3 px-3 py-1.5 rounded-[8px] border border-[#D4FF3A]/30 text-[#D4FF3A] text-[11px] font-bold hover:bg-[#D4FF3A]/10 transition-all"
+            >
+              New Match
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── WIZARD MODAL (setup only) ─────────────────────── */}
+      <WizardModal
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        steps={WIZARD_STEPS}
+        currentStep={0}
+        stepTitle="Set up match scenario"
+        stepSubtitle="Choose a preset or configure a custom match situation"
+        onNext={canConfirm ? handleConfirmScenario : null}
+        nextLabel={canConfirm ? "Confirm & Start Live" : "Enter both player names"}
+        nextDisabled={!canConfirm}
+        direction="forward"
+      >
+        <WizardStepScenario
+          form={form}
+          onChange={handleFormChange}
+          presets={scenarios}
+          activePresetId={activePresetId}
+          onPreset={handlePreset}
+        />
+      </WizardModal>
     </div>
   );
 };

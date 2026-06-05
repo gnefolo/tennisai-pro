@@ -1,16 +1,26 @@
 // src/hooks/useInfosysDemoState.ts
-// v2 — collegamento reale al backend
-// Fix applicati rispetto a v1:
-//   1. URL corretto: /api/live/tagged_point (underscore, non trattino)
-//   2. API_BASE usa import.meta.env in modo corretto per Vite
-//   3. Health check proattivo al mount per impostare backendStatus subito
-//   4. Payload set/game/point_number coerenti con lo scenario scelto
-//   5. momentumLast5 mappato su [0,1] prima di inviarlo (backend vuole frazione)
-//   6. tactical_call e tactical_explanation in italiano → tradotti in inglese per display
-//   7. generateExplanation ora usa i dati reali dal backend (se online) via secondo call
-//   8. DEMO_PATTERNS aggiornati dinamicamente dal risultato reale del backend
+// v6 — Undo + Fan Mode (BroadcastChannel)
+// Changes from v5:
+//   - Undo last point: stores pre-point snapshot, restores on undo
+//   - BroadcastChannel: coach tab pushes state to fan tabs
+//   - Fan mode: read-only view that receives updates
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  type MatchState,
+  type RunningStats,
+  type PressureFlags,
+  type ScoringResult,
+  createMatch,
+  createInitialStats,
+  scorePoint,
+  computeFlags,
+  getPointScore,
+  getGameScore,
+  getSetScores,
+  getFullScore,
+  getSetScoresArray,
+} from "./useTennisScoring";
 
 // ─── TIPI ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +92,16 @@ export interface PredictionResult {
     recommendedIntent: string;
   };
   isDemoFallback: boolean;
+  predictionUnavailable?: boolean;
+  modelMetadata?: {
+    version: string;
+    model_type: string;
+    calibration_method: string;
+    split_type: string;
+    brier_score?: number;
+    accuracy?: number;
+    roc_auc?: number;
+  };
 }
 
 export interface PatternAlternative {
@@ -116,6 +136,19 @@ export interface InsightSet {
   coach: string;
   media: string;
   apiPayload: object;
+}
+
+// ─── LIVE LOOP TYPES ─────────────────────────────────────────────────────────
+
+export interface TaggedPoint {
+  id: number;
+  pointNumber: number;
+  timestamp: number;
+  prediction: PredictionResult;
+  outcome: RegisteredOutcome;
+  swing: number;         // pp swing (positive = good for player)
+  won: boolean;
+  pointScore: string;    // score at the time of the point
 }
 
 // ─── SCENARI DEMO ────────────────────────────────────────────────────────────
@@ -434,6 +467,136 @@ async function postJSON<T>(url: string, body: unknown, timeoutMs = 10000): Promi
   }
 }
 
+// ─── PERSISTENZA ──────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "tennisai_live_match";
+
+interface SavedMatch {
+  v: number;
+  ts: number;
+  matchState: MatchState;
+  runningStats: RunningStats;
+  pointHistory: TaggedPoint[];
+  scenario: DemoScenario;
+  prediction: PredictionResult | null;
+}
+
+function saveMatch(data: SavedMatch): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch { /* quota exceeded or private mode — silent */ }
+}
+
+function loadMatch(): SavedMatch | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as SavedMatch;
+    if (data.v !== 1 || !data.matchState || !data.scenario) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function clearSavedMatch(): void {
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* silent */ }
+}
+
+// ─── EXPORT HELPERS ───────────────────────────────────────────────────────────
+
+function downloadBlob(content: string, filename: string, mime: string): void {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function buildCSV(scenario: DemoScenario, history: TaggedPoint[], matchState: MatchState, stats: RunningStats): string {
+  const header = [
+    "point_number","timestamp","won","finish_type","rally_length",
+    "serve_direction","point_score","probability","swing_pp",
+    "pattern","is_demo_fallback",
+  ].join(",");
+
+  // Points are stored newest-first, reverse for chronological
+  const rows = [...history].reverse().map((p) => [
+    p.pointNumber,
+    new Date(p.timestamp).toISOString(),
+    p.won ? 1 : 0,
+    p.outcome.finishType,
+    p.outcome.rallyLength,
+    p.outcome.serveDirection ?? "",
+    `"${p.pointScore}"`,
+    p.prediction.probability.toFixed(4),
+    p.swing,
+    `"${p.outcome.actualPattern}"`,
+    p.prediction.isDemoFallback ? 1 : 0,
+  ].join(","));
+
+  const meta = [
+    `# TennisAI Pro — Match Export`,
+    `# ${scenario.player1} vs ${scenario.player2}`,
+    `# ${scenario.surface} · ${scenario.round}`,
+    `# Final score: ${getFullScore(matchState)}`,
+    `# Points: ${history.length} · Svc%: ${(stats.svcPct * 100).toFixed(1)} · Rtn%: ${(stats.rtnPct * 100).toFixed(1)}`,
+    `# Exported: ${new Date().toISOString()}`,
+    `#`,
+  ].join("\n");
+
+  return meta + "\n" + header + "\n" + rows.join("\n") + "\n";
+}
+
+function buildJSON(scenario: DemoScenario, history: TaggedPoint[], matchState: MatchState, stats: RunningStats): string {
+  const data = {
+    meta: {
+      tool: "TennisAI Pro",
+      version: "2.0.0",
+      exported: new Date().toISOString(),
+    },
+    match: {
+      player1: scenario.player1,
+      player2: scenario.player2,
+      surface: scenario.surface,
+      round: scenario.round,
+      finalScore: getFullScore(matchState),
+      winner: matchState.winner === 1 ? scenario.player1
+            : matchState.winner === 2 ? scenario.player2
+            : null,
+      setsCompleted: matchState.completedSets,
+      totalPoints: history.length,
+    },
+    stats: {
+      svcPointsPlayed: stats.svcPointsPlayed,
+      svcPointsWon: stats.svcPointsWon,
+      svcPct: stats.svcPct,
+      rtnPointsPlayed: stats.rtnPointsPlayed,
+      rtnPointsWon: stats.rtnPointsWon,
+      rtnPct: stats.rtnPct,
+    },
+    points: [...history].reverse().map((p) => ({
+      pointNumber: p.pointNumber,
+      timestamp: new Date(p.timestamp).toISOString(),
+      won: p.won,
+      finishType: p.outcome.finishType,
+      rallyLength: p.outcome.rallyLength,
+      serveDirection: p.outcome.serveDirection,
+      pointScore: p.pointScore,
+      probability: p.prediction.probability,
+      swingPp: p.swing,
+      pattern: p.outcome.actualPattern,
+      patternName: p.prediction.patternName,
+      isDemoFallback: p.prediction.isDemoFallback,
+    })),
+  };
+  return JSON.stringify(data, null, 2);
+}
+
 // ─── HOOK PRINCIPALE ──────────────────────────────────────────────────────────
 
 export function useInfosysDemoState() {
@@ -447,16 +610,105 @@ export function useInfosysDemoState() {
   const [insights, setInsights] = useState<InsightSet | null>(null);
   const [outputMode, setOutputMode] = useState<OutputMode>("coach");
   const [backendStatus, setBackendStatus] = useState<BackendStatus>("unknown");
+  const [demoSimulationMode, setDemoSimulationMode] = useState<boolean>(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [briefCopied, setBriefCopied] = useState(false);
 
+  // ─── LIVE LOOP STATE ──────────────────────────────────────────────────────
+  const [liveMode, setLiveMode] = useState(false);
+  const [pointHistory, setPointHistory] = useState<TaggedPoint[]>([]);
+  const [lastSwing, setLastSwing] = useState<TaggedPoint | null>(null);
+
+  // ─── SCORING ENGINE STATE ─────────────────────────────────────────────────
+  const [matchState, setMatchState] = useState<MatchState>(() =>
+    createMatch({ bestOf: 3, player1Serves: true })
+  );
+  const [runningStats, setRunningStats] = useState<RunningStats>(() =>
+    createInitialStats()
+  );
+  const [lastScoringResult, setLastScoringResult] = useState<ScoringResult | null>(null);
+  const [hasSavedMatch, setHasSavedMatch] = useState(false);
+  const isRestoringRef = useRef(false);
+
+  // ─── UNDO SNAPSHOT ──────────────────────────────────────────────────────
+  const undoSnapshotRef = useRef<{
+    matchState: MatchState;
+    runningStats: RunningStats;
+    scenario: DemoScenario;
+    prediction: PredictionResult | null;
+  } | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+
+  // ─── BROADCAST CHANNEL (Fan Mode) ───────────────────────────────────
+  const [fanMode, setFanMode] = useState(false);
+  const channelRef = useRef<BroadcastChannel | null>(null);
+
+  // Setup BroadcastChannel
+  useEffect(() => {
+    try {
+      const ch = new BroadcastChannel("tennisai_live");
+      channelRef.current = ch;
+
+      ch.onmessage = (e) => {
+        if (!fanMode) return; // Only receive in fan mode
+        const data = e.data;
+        if (data.type === "STATE_UPDATE") {
+          setMatchState(data.matchState);
+          setRunningStats(data.runningStats);
+          setPointHistory(data.pointHistory);
+          setSelectedScenario(data.scenario);
+          setPrediction(data.prediction);
+          setLiveMode(true);
+          if (data.lastScoringResult) setLastScoringResult(data.lastScoringResult);
+        }
+      };
+
+      return () => ch.close();
+    } catch {
+      // BroadcastChannel not supported
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fanMode]);
+
+  // ─── AUTO-RESTORE from localStorage on mount ────────────────────────────
+  useEffect(() => {
+    const saved = loadMatch();
+    if (saved) {
+      setHasSavedMatch(true);
+      isRestoringRef.current = true;
+      setMatchState(saved.matchState);
+      setRunningStats(saved.runningStats);
+      setPointHistory(saved.pointHistory);
+      setSelectedScenario(saved.scenario);
+      setPrediction(saved.prediction);
+      setLiveMode(true);
+      // Small delay to let state settle
+      setTimeout(() => { isRestoringRef.current = false; }, 100);
+      console.info("[TennisAI] ✅ Match ripristinato da localStorage",
+        `(${saved.pointHistory.length} punti, ${new Date(saved.ts).toLocaleTimeString()})`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Health check al mount — imposta subito backendStatus
+  // NOTA: se il backend non è attivo, il browser logga un errore di rete in console.
+  // È atteso: il sistema passa automaticamente in modalità "demo fallback".
   useEffect(() => {
     let cancelled = false;
-    getJSON<{ status: string }>(`${API_BASE}/api/health`, 4000)
-      .then(() => { if (!cancelled) setBackendStatus("online"); })
-      .catch(() => { if (!cancelled) setBackendStatus("offline"); });
+    getJSON<{ status: string }>(`${API_BASE}/api/health`, 2000)
+      .then(() => {
+        if (!cancelled) {
+          setBackendStatus("online");
+          console.info("[TennisAI] ✅ Backend online:", API_BASE);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBackendStatus("offline");
+          console.info("[TennisAI] ℹ️ Backend non raggiungibile — demo fallback attivo. L'errore di rete sopra è atteso.");
+        }
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -528,6 +780,15 @@ export function useInfosysDemoState() {
           vulnerability_zone: string;
           recommended_intent: string;
         };
+        model_metadata?: {
+          version: string;
+          model_type: string;
+          calibration_method: string;
+          split_type: string;
+          brier_score?: number;
+          accuracy?: number;
+          roc_auc?: number;
+        };
       };
 
       // URL con underscore — come definito in main.py
@@ -566,23 +827,48 @@ export function useInfosysDemoState() {
             }
           : undefined,
         isDemoFallback: false,
+        modelMetadata:       res.model_metadata,
       };
 
       setPrediction(result);
       // Aggiorna i pattern alternativi in base al risultato reale
       setPatterns(buildPatternsFromResult(result));
       setCurrentStep("simulate");
+      setLiveMode(true);
 
     } catch (err) {
       console.warn("[InfosysDemo] Backend unavailable, using demo fallback:", err);
       setBackendStatus("offline");
-      setPrediction({ ...DEMO_PREDICTION_FALLBACK, pressureState: selectedScenario.pressureState });
-      setPatterns(BASE_PATTERNS);
+      if (demoSimulationMode) {
+        setPrediction({
+          ...DEMO_PREDICTION_FALLBACK,
+          pressureState: selectedScenario.pressureState,
+          isDemoFallback: true,
+        });
+        setPatterns(BASE_PATTERNS);
+      } else {
+        setPrediction({
+          probability: 0.5,
+          prediction: 1,
+          patternName: "AI Prediction Unavailable",
+          patternId: 0,
+          tacticalCall: "Connection Lost — AI Offline",
+          tacticalConfidence: "LOW",
+          momentumState: "NEUTRAL",
+          pressureState: selectedScenario.pressureState,
+          riskLevel: "MEDIUM",
+          tacticalExplanation: "Real-time win probability and tactical predictions are offline. All local ATP scoring rules, stroke tagging, and data exporting tools remain 100% active locally.",
+          isDemoFallback: false,
+          predictionUnavailable: true,
+        });
+        setPatterns([]);
+      }
       setCurrentStep("simulate");
+      setLiveMode(true);
     } finally {
       setLoading(false);
     }
-  }, [selectedScenario]);
+  }, [selectedScenario, demoSimulationMode]);
 
   // Step 3: Seleziona pattern
   const selectPattern = useCallback((p: PatternAlternative) => {
@@ -695,6 +981,201 @@ export function useInfosysDemoState() {
     } catch { /* silent */ }
   }, []);
 
+  // ─── LIVE LOOP: TAG & ADVANCE ────────────────────────────────────────────
+  // Atomic operation for courtside use: tag outcome → compute swing → advance point → auto-predict
+  const tagAndAdvance = useCallback(async (outcome: RegisteredOutcome) => {
+    if (!prediction || !selectedScenario) return;
+    setLoading(true);
+    setError(null);
+
+    const probBefore = prediction.probability;
+    let nextProbability = probBefore;
+
+    // 1. Compute post-point swing via backend
+    if (backendStatus === "online") {
+      try {
+        const postPayload = {
+          set:          selectedScenario.set,
+          game:         selectedScenario.game,
+          point_number: selectedScenario.pointNumber,
+          is_on_serve:  selectedScenario.isOnServe ? 1 : 0,
+          serve_number: selectedScenario.serveNumber,
+          rally_count:  outcome.rallyLength === "SHORT" ? 2
+                      : outcome.rallyLength === "MEDIUM" ? 5 : 9,
+          stats: {
+            pctServicePointsWon:     selectedScenario.svcPct,
+            pctReturnPointsWon:      selectedScenario.rtnPct,
+            pctFirstServePointsWon:  selectedScenario.firstSvcPct,
+            pctSecondServePointsWon: selectedScenario.secondSvcPct,
+            momentumLast5: outcome.winner === "player"
+              ? Math.min(1, selectedScenario.momentumLast5 + 0.2)
+              : Math.max(0, selectedScenario.momentumLast5 - 0.2),
+          },
+          flags: {
+            isBreakPoint:       selectedScenario.isBreakPoint,
+            isGamePoint:        selectedScenario.isGamePoint,
+            isGamePointAgainst: selectedScenario.isGamePointAgainst,
+          },
+          tag: {
+            serve_direction: outcome.serveDirection ?? null,
+            finish_type:     outcome.finishType,
+            point_outcome:   outcome.winner === "player" ? "WON" : "LOST",
+          },
+          recent_points: [
+            {
+              isPointWon:   outcome.winner === "player" ? 1 : 0,
+              macroPattern: null,
+              rallyCount:   outcome.rallyLength === "SHORT" ? 2 : outcome.rallyLength === "MEDIUM" ? 5 : 9,
+              isOnServe:    selectedScenario.isOnServe ? 1 : 0,
+              serveNumber:  selectedScenario.serveNumber,
+            },
+          ],
+        };
+        type UpdatedResponse = { point_win_probability: number };
+        const updated = await postJSON<UpdatedResponse>(
+          `${API_BASE}/api/live/tagged_point`,
+          postPayload,
+          6000
+        );
+        nextProbability = updated.point_win_probability;
+      } catch {
+        // fallback — use same probability
+      }
+    }
+
+    // 2. Save undo snapshot BEFORE changing state
+    undoSnapshotRef.current = {
+      matchState,
+      runningStats,
+      scenario: selectedScenario,
+      prediction,
+    };
+    setCanUndo(true);
+
+    // 3. Score the point using the scoring engine
+    const won = outcome.winner === "player";
+    const scoringResult = scorePoint(matchState, runningStats, won ? 1 : 2);
+    setMatchState(scoringResult.match);
+    setRunningStats(scoringResult.stats);
+    setLastScoringResult(scoringResult);
+
+    // 3. Calculate swing
+    const swing = won
+      ? nextProbability - probBefore
+      : probBefore - nextProbability;
+    const swingPp = Math.round(swing * 100);
+
+    // 4. Save to history with real score context
+    const taggedPoint: TaggedPoint = {
+      id: Date.now(),
+      pointNumber: scoringResult.match.totalPoints,
+      timestamp: Date.now(),
+      prediction,
+      outcome,
+      swing: swingPp,
+      won,
+      pointScore: scoringResult.scoreAtPoint,
+    };
+    setPointHistory(prev => [taggedPoint, ...prev]);
+    setLastSwing(taggedPoint);
+    setTimeout(() => setLastSwing(prev => prev?.id === taggedPoint.id ? null : prev), 3000);
+
+    // 5. Compute momentum from last 5 tagged points
+    const recentPoints = [taggedPoint, ...pointHistory].slice(0, 5);
+    const recentWins = recentPoints.filter(p => p.won).length;
+    const updatedMomentum = recentPoints.length > 0 ? recentWins / recentPoints.length : 0.5;
+    const momLabel: "HOT" | "NEUTRAL" | "COLD" =
+      updatedMomentum >= 0.65 ? "HOT" : updatedMomentum <= 0.3 ? "COLD" : "NEUTRAL";
+
+    // 6. Auto-compute pressure flags from real score
+    const nextFlags = computeFlags(scoringResult.match);
+
+    // 7. Compute running stats (blend with initial stats if few points)
+    const effectiveSvcPct = scoringResult.stats.svcPointsPlayed >= 5
+      ? scoringResult.stats.svcPct
+      : (selectedScenario.svcPct * 5 + scoringResult.stats.svcPointsWon) / (5 + scoringResult.stats.svcPointsPlayed);
+    const effectiveRtnPct = scoringResult.stats.rtnPointsPlayed >= 5
+      ? scoringResult.stats.rtnPct
+      : (selectedScenario.rtnPct * 5 + scoringResult.stats.rtnPointsWon) / (5 + scoringResult.stats.rtnPointsPlayed);
+
+    // 8. Build next scenario from REAL match state
+    const nextScenario: DemoScenario = {
+      ...selectedScenario,
+      pointNumber: scoringResult.match.totalPoints + 1,
+      pointScore: getPointScore(scoringResult.match),
+      score: getSetScores(scoringResult.match) || selectedScenario.score,
+      set: scoringResult.match.setNumber,
+      game: scoringResult.match.games[0] + scoringResult.match.games[1] + 1,
+      isOnServe: scoringResult.match.server === 1,
+      serveNumber: 1, // default; QuickTagBar doesn't track serve faults yet
+      momentumLast5: updatedMomentum,
+      momentum: momLabel,
+      svcPct: effectiveSvcPct,
+      rtnPct: effectiveRtnPct,
+      isBreakPoint: nextFlags.isBreakPoint,
+      isGamePoint: nextFlags.isGamePoint,
+      isGamePointAgainst: nextFlags.isGamePointAgainst,
+      pressureState: nextFlags.pressureState,
+    };
+    setSelectedScenario(nextScenario);
+
+    // 9. Reset outcome state for next point
+    setRegisteredOutcome(null);
+    setPostPointExplanation(null);
+    setSelectedPattern(null);
+
+    // 10. Auto-predict next point (if match not over)
+    if (!scoringResult.match.matchOver) {
+      setPrediction(null);
+    }
+
+    // 11. Persist to localStorage
+    const updatedHistory = [taggedPoint, ...pointHistory];
+    saveMatch({
+      v: 1,
+      ts: Date.now(),
+      matchState: scoringResult.match,
+      runningStats: scoringResult.stats,
+      pointHistory: updatedHistory,
+      scenario: nextScenario,
+      prediction: null,
+    });
+
+    // 12. Broadcast to fan tabs (same-browser via BroadcastChannel)
+    const broadcastPayload = {
+      type: "STATE_UPDATE",
+      matchState: scoringResult.match,
+      runningStats: scoringResult.stats,
+      pointHistory: updatedHistory,
+      scenario: nextScenario,
+      prediction: null,
+      lastScoringResult: scoringResult,
+    };
+
+    if (channelRef.current && !fanMode) {
+      channelRef.current.postMessage(broadcastPayload);
+    }
+
+    // 13. Broadcast to WebSocket clients via backend (fire-and-forget)
+    if (backendStatus === "online" && !fanMode) {
+      fetch(`${API_BASE}/api/live/broadcast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(broadcastPayload),
+      }).catch(() => { /* silent — WS broadcast is best-effort */ });
+    }
+
+    setLoading(false);
+
+  }, [prediction, selectedScenario, backendStatus, matchState, runningStats, pointHistory, fanMode]);
+
+  // Initialize scoring engine from scenario config
+  const initScoring = useCallback((player1Serves: boolean, bestOf: 3 | 5 = 3) => {
+    setMatchState(createMatch({ bestOf, player1Serves }));
+    setRunningStats(createInitialStats());
+    setLastScoringResult(null);
+  }, []);
+
   // Reset
   const resetDemo = useCallback(() => {
     setCurrentStep("scenario");
@@ -707,7 +1188,82 @@ export function useInfosysDemoState() {
     setInsights(null);
     setError(null);
     setOutputMode("coach");
+    setLiveMode(false);
+    setPointHistory([]);
+    setLastSwing(null);
+    setMatchState(createMatch({ bestOf: 3, player1Serves: true }));
+    setRunningStats(createInitialStats());
+    setLastScoringResult(null);
+    setHasSavedMatch(false);
+    clearSavedMatch();
+    setCanUndo(false);
+    undoSnapshotRef.current = null;
   }, []);
+
+  // ─── UNDO LAST POINT ─────────────────────────────────────────────────────
+  const undoLastPoint = useCallback(() => {
+    const snap = undoSnapshotRef.current;
+    if (!snap || pointHistory.length === 0) return;
+
+    // Restore previous state
+    setMatchState(snap.matchState);
+    setRunningStats(snap.runningStats);
+    setSelectedScenario(snap.scenario);
+    setPrediction(snap.prediction);
+    setLastScoringResult(null);
+
+    // Remove last point from history
+    const [, ...rest] = pointHistory;
+    setPointHistory(rest);
+    setLastSwing(null);
+
+    // Clear undo (only 1 level)
+    undoSnapshotRef.current = null;
+    setCanUndo(false);
+
+    // Re-save to localStorage
+    if (snap.scenario) {
+      saveMatch({
+        v: 1,
+        ts: Date.now(),
+        matchState: snap.matchState,
+        runningStats: snap.runningStats,
+        pointHistory: rest,
+        scenario: snap.scenario,
+        prediction: snap.prediction,
+      });
+    }
+
+    // Broadcast undo to fan tabs
+    if (channelRef.current && !fanMode) {
+      channelRef.current.postMessage({
+        type: "STATE_UPDATE",
+        matchState: snap.matchState,
+        runningStats: snap.runningStats,
+        pointHistory: rest,
+        scenario: snap.scenario,
+        prediction: snap.prediction,
+        lastScoringResult: null,
+      });
+    }
+
+    console.info("[TennisAI] ↩ Undo: punto annullato");
+  }, [pointHistory, fanMode]);
+
+  // ─── EXPORT FUNCTIONS ───────────────────────────────────────────────────
+  const exportCSV = useCallback(() => {
+    if (!selectedScenario || pointHistory.length === 0) return;
+    const csv = buildCSV(selectedScenario, pointHistory, matchState, runningStats);
+    const name = `${selectedScenario.player1}_vs_${selectedScenario.player2}`.replace(/[^a-zA-Z0-9]/g, "_");
+    downloadBlob(csv, `tennisai_${name}_${Date.now()}.csv`, "text/csv");
+  }, [selectedScenario, pointHistory, matchState, runningStats]);
+
+  const exportJSON = useCallback(() => {
+    if (!selectedScenario || pointHistory.length === 0) return;
+    const json = buildJSON(selectedScenario, pointHistory, matchState, runningStats);
+    const name = `${selectedScenario.player1}_vs_${selectedScenario.player2}`.replace(/[^a-zA-Z0-9]/g, "_");
+    downloadBlob(json, `tennisai_${name}_${Date.now()}.json`, "application/json");
+  }, [selectedScenario, pointHistory, matchState, runningStats]);
 
   return {
     currentStep,
@@ -734,5 +1290,36 @@ export function useInfosysDemoState() {
     copyBrief,
     setOutputMode,
     resetDemo,
+    // Live loop
+    liveMode,
+    pointHistory,
+    lastSwing,
+    tagAndAdvance,
+    // Scoring engine
+    matchState,
+    runningStats,
+    scoringFlags: computeFlags(matchState),
+    lastScoringResult,
+    initScoring,
+    scoringDisplay: {
+      pointScore: getPointScore(matchState),
+      gameScore: getGameScore(matchState),
+      setScores: getSetScores(matchState),
+      fullScore: getFullScore(matchState),
+      setScoresArray: getSetScoresArray(matchState),
+    },
+    // Persistence & Export
+    hasSavedMatch,
+    exportCSV,
+    exportJSON,
+    // Undo
+    canUndo,
+    undoLastPoint,
+    // Fan mode
+    fanMode,
+    setFanMode,
+    // Demo simulation toggle
+    demoSimulationMode,
+    setDemoSimulationMode,
   };
 }

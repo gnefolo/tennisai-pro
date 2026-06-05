@@ -28,7 +28,6 @@ WIN_FEATURES = [
     "score_pressure_index",
     "serve_advantage",
     "first_second_gap",
-    "momentum_trend",
 ]
 
 PATTERN_FEATURES = WIN_FEATURES.copy()

@@ -47,6 +47,11 @@ interface CourtModeOverlayProps {
     onRegister: () => void;
     onUndo: () => void;
     onClose: () => void;
+
+    // AI insight bar (optional — shown between step bar and wizard body)
+    probText?: string;
+    tacticalCall?: string;
+    momentumState?: string;
 }
 
 // ─── BUSINESS LOGIC (speculare a FastTagPanel) ────────────────────────────────
@@ -141,6 +146,7 @@ const CourtModeOverlay: React.FC<CourtModeOverlayProps> = ({
     onPendingWinnerChange, onServeNumberChange, onServeDirectionChange, onServeQualityChange,
     onMacroPatternChange, onReturnTypeChange, onRallyPhaseChange, onKeyEventChange,
     onFinishTypeChange, onFinishShotChange, onRegister, onUndo, onClose,
+    probText, tacticalCall, momentumState,
 }) => {
     // Step derivato (stessa logica di FastTagPanel)
     const currentStep = useMemo(() => {
@@ -251,6 +257,41 @@ const CourtModeOverlay: React.FC<CourtModeOverlayProps> = ({
                     </div>
                 ))}
             </div>
+
+            {/* ── AI Insight bar (probText / tacticalCall) ── */}
+            {(probText || tacticalCall) && (
+                <div className="flex-shrink-0 flex items-center gap-2.5 px-4 py-2.5 bg-court-night/70 border-b border-white/[0.05]">
+                    {probText && (
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] border shrink-0 ${
+                            parseFloat(probText) >= 65
+                                ? "border-ace-lime/35 bg-ace-lime/10 text-ace-lime"
+                                : parseFloat(probText) <= 35
+                                ? "border-error/35 bg-error/10 text-error"
+                                : "border-clay-amber/35 bg-clay-amber/10 text-clay-amber"
+                        }`}>
+                            <span className="text-[9px] font-bold uppercase tracking-[0.16em] opacity-70">Win%</span>
+                            <span className="font-head text-[14px] font-bold leading-none">{probText}</span>
+                        </div>
+                    )}
+                    {momentumState && momentumState !== "NEUTRAL" && (
+                        <div className={`flex items-center gap-1 px-2 py-1 rounded-[8px] border text-[10px] font-semibold shrink-0 ${
+                            momentumState === "HOT"
+                                ? "border-success/30 bg-success/10 text-success"
+                                : "border-error/30 bg-error/10 text-error"
+                        }`}>
+                            {momentumState === "HOT" ? "🔥" : "❄"} {momentumState}
+                        </div>
+                    )}
+                    {tacticalCall && (
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(212,255,58,0.6)" strokeWidth="2.5" strokeLinecap="round" className="shrink-0">
+                                <path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12 6.48 2 12 2z" /><path d="M12 8v4m0 4h.01" />
+                            </svg>
+                            <span className="text-[11px] text-fog/70 font-medium truncate leading-tight">{tacticalCall}</span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ── Wizard body — scrollabile ── */}
             <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-5">

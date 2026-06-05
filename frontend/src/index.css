@@ -402,12 +402,27 @@
 }
 
 /* ─── OUTDOOR MODE — alta visibilità in campo con luce solare ─── */
-html.outdoor-mode #root {
+/*
+  Il filter va applicato su .outdoor-main (il content wrapper), NON su #root.
+  Se il filter fosse su #root, i figli con position:fixed (wizard modal, bottom nav)
+  verrebbero posizionati relativamente al bounding box di #root invece del viewport
+  — problema visivo grave su tablet Android (Chrome/WebKit).
+*/
+html.outdoor-mode .outdoor-main {
     filter: brightness(1.35) contrast(1.25) saturate(1.15);
 }
 
-html.outdoor-mode #root .font-head {
+html.outdoor-mode .outdoor-main .font-head {
     -webkit-text-stroke: 0.3px currentColor;
+}
+
+/* Reset filter per elementi con backdrop-filter:
+   su Android, filter + backdrop-filter nello stesso stacking context
+   causa rendering artifacts (blur che non funziona, sfondi bianchi/neri). */
+html.outdoor-mode .wizard-backdrop,
+html.outdoor-mode .wizard-container,
+html.outdoor-mode .quick-tag-bar {
+    filter: none;
 }
 
 @keyframes courtModeIn {
@@ -577,4 +592,71 @@ html.outdoor-mode #root .font-head {
         opacity: 0;
         transform: translateX(-50%) translateY(-8px) scale(0.95);
     }
+}
+
+/* ─── PROBABILITY HERO ANIMATIONS ────────────────────────────── */
+
+@keyframes prob-hero-enter {
+    from {
+        opacity: 0.4;
+        transform: scale(0.96) translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes prob-bar-fill {
+    from { width: 0%; opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.prob-hero-enter {
+    animation: prob-hero-enter 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.prob-bar-fill {
+    animation: prob-bar-fill 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ─── INFOSYS MOMENTUM STRIP ANIMATIONS ─────────────────── */
+
+/* Won bar: transform-origin is set to "center bottom" on the element
+   so scaleY grows upward from the center line */
+@keyframes momentum-bar-scale-up {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+}
+
+/* Lost bar: transform-origin is "center top" on the element
+   so scaleY grows downward from the center line */
+@keyframes momentum-bar-scale-down {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes momentum-detail-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes momentum-streak-badge {
+    0%   { opacity: 0; transform: scale(0.85); }
+    60%  { transform: scale(1.05); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.momentum-streak-badge {
+    animation: momentum-streak-badge 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.momentum-gauge-fill {
+    animation: prob-bar-fill 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }

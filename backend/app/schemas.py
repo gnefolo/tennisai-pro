@@ -75,6 +75,16 @@ class TacticalV3Out(BaseModel):
     recommended_intent: str
 
 
+class ModelMetadataOut(BaseModel):
+    version: str
+    model_type: str
+    calibration_method: str
+    split_type: str
+    brier_score: Optional[float] = None
+    accuracy: Optional[float] = None
+    roc_auc: Optional[float] = None
+
+
 class LiveTaggedPointResponse(BaseModel):
     point_win_probability: float
     prediction: int
@@ -97,3 +107,4 @@ class LiveTaggedPointResponse(BaseModel):
     risk_level: Optional[str] = None
 
     tactical_v3: Optional[TacticalV3Out] = None
+    model_metadata: Optional[ModelMetadataOut] = None

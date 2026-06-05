@@ -16,7 +16,7 @@ from app.model_features import WIN_FEATURES
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_PATH = BASE_DIR / "slam_all_features.csv"
+DATA_PATH = BASE_DIR / "slam_all_features_fixed.csv"
 MODEL_PATH = BASE_DIR / "tactical_model_xgb_temporal.pkl"
 REPORT_PATH = BASE_DIR / "tactical_model_xgb_temporal_report.json"
 
@@ -149,7 +149,7 @@ def main():
         "model_type": "CalibratedClassifierCV",
         "calibration_method": "isotonic",
         "features": WIN_FEATURES,
-        "version": "2.3.0",
+        "version": "2.5.0",
         "target": "point_won",
         "split_type": "temporal_match_split",
         "base_metrics": base_metrics,

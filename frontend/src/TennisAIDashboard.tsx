@@ -63,7 +63,7 @@ export const TennisAIDashboard: React.FC = () => {
   return (
     <>
       {/* ── Main content — pb-20 su mobile/tablet per non essere nascosto dal bottom nav ── */}
-      <div className="min-h-screen bg-court-night text-baseline px-3 py-3 md:px-4 md:py-4 pb-20 lg:pb-4">
+      <div className="outdoor-main min-h-screen bg-court-night text-baseline px-3 py-3 md:px-4 md:py-4 pb-20 lg:pb-4">
         <div className="max-w-7xl mx-auto flex flex-col gap-3 md:gap-4">
 
           {/* ── Header ── */}

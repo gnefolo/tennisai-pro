@@ -10,6 +10,7 @@
 //     ai componenti già riscritti.
 
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type {
   FastMacroPattern, FinishShot, FinishType, Handedness,
   KeyEvent, LiveMatchSession, LivePlayer, LiveTaggedPointResponse,
@@ -25,12 +26,8 @@ import {
 import LiveMatchSetup from "../components/live/LiveMatchSetup";
 import LiveMatchHero from "../components/live/LiveMatchHero";
 import FastTagPanel from "../components/live/FastTagPanel";
-import LiveStatsPanel from "../components/live/LiveStatsPanel";
-import PatternInsightsPanel from "../components/live/PatternInsightsPanel";
-import MomentumStrip from "../components/live/MomentumStrip";
-import RecentPointsTimeline from "../components/live/RecentPointsTimeline";
-import RecordedPointsPanel from "../components/live/RecordedPointsPanel";
-import WinProbabilityChart from "../components/live/WinProbabilityChart";
+import InfosysMomentumStrip, { type MomentumBeat } from "../components/infosys/InfosysMomentumStrip";
+import LiveAnalyticsPanel from "../components/live/LiveAnalyticsPanel";
 import PatternDistributionPanel from "../components/live/PatternDistributionPanel";
 import { DownloadIcon, ArrowRightIcon } from "../components/ui/icons";
 // Keep-awake: mantiene lo schermo acceso durante il match (solo su Android/iOS)
@@ -67,6 +64,7 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
     clearTimeout(timeout);
   }
 }
+
 
 // ── COMPONENTE ────────────────────────────────────────────────────────────────
 export const LiveMatchPage: React.FC = () => {
@@ -285,6 +283,7 @@ export const LiveMatchPage: React.FC = () => {
 
   // ── persist live state (invariato) ───────────────────────────────────────
   useEffect(() => {
+    if (!currentSessionId) return;
     persistLiveState({ currentSessionId, setNumber, gameNumber, pointNumber, setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp, recordedPoints, isMatchOver, matchWinner });
     if (currentSessionId) {
       const map = readMatchRecordMap();
@@ -616,6 +615,21 @@ export const LiveMatchPage: React.FC = () => {
 
   // ── Valori derivati per i componenti (invariati) ──────────────────────────
   const probText = prediction != null ? `${(prediction.point_win_probability * 100).toFixed(1)}%` : "-";
+
+  // ── Momentum beats: RecordedPoint[] → MomentumBeat[] (chronological) ───────
+  const momentumBeats = useMemo<MomentumBeat[]>(() =>
+    recordedPoints.map((pt) => ({
+      id: pt.id,
+      pointNumber: pt.pointNumber,
+      won: pt.isPointWon === 1,
+      rallyLength: (pt.rallyBucket ?? "MEDIUM") as "SHORT" | "MEDIUM" | "LONG",
+      probability: pt.modelPointWinProbability,
+      hasPressure: pt.isBreakPoint === 1 || pt.isGamePoint === 1 || pt.isGamePointAgainst === 1,
+      pointScore: `${pt.pointScoreMe}-${pt.pointScoreOpp}`,
+      finishType: pt.finishType ?? undefined,
+    })),
+    [recordedPoints]
+  );
   const headerTournament = currentSession?.tournament || tournamentName || "Match live non etichettato";
   const headerMatchType = matchType === "BO3" ? "Best of 3" : "Best of 5";
   const recentFivePoints = recordedPoints.slice(-5).reverse();
@@ -652,13 +666,14 @@ export const LiveMatchPage: React.FC = () => {
   return (
     <div className="flex flex-col gap-4 h-full">
 
-      {/* ── Banner Offline ── */}
-      {!isOnline && (
+      {/* ── Banner Offline — portal per evitare il containing-block del filter outdoor ── */}
+      {!isOnline && createPortal(
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2.5 bg-clay-amber/95 backdrop-blur-sm px-4 py-2.5 text-court-night text-[12px] font-bold"
              style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top, 0px))" }}>
           <span className="w-2 h-2 rounded-full bg-court-night/50 animate-pulse" />
           Modalità offline — punti registrati localmente, analisi AI non disponibile
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Share Modal (Spectator) ── */}
@@ -684,8 +699,8 @@ export const LiveMatchPage: React.FC = () => {
         />
       )}
 
-      {/* ── Court Mode Overlay ── */}
-      {isCourtMode && (
+      {/* ── Court Mode Overlay — portal: esce dal containing-block del filter outdoor ── */}
+      {isCourtMode && createPortal(
         <CourtModeOverlay
           playerName={activePlayer?.name}
           opponentName={opponentName || "Avversario"}
@@ -719,7 +734,11 @@ export const LiveMatchPage: React.FC = () => {
           onRegister={handleRegisterAndAnalyze}
           onUndo={handleUndoLastPoint}
           onClose={() => setIsCourtMode(false)}
-        />
+          probText={probText !== "-" ? probText : undefined}
+          tacticalCall={immediateTacticalCall || undefined}
+          momentumState={prediction?.momentum_state}
+        />,
+        document.body
       )}
 
       {/* ── Wrapper hero card — court-night con elevation */}
@@ -749,14 +768,15 @@ export const LiveMatchPage: React.FC = () => {
         />
       </div>
 
-      <MomentumStrip
-        recentMomentumPoints={recentMomentumPoints}
-        recentSequenceInsight={recentSequenceInsight}
+      <InfosysMomentumStrip
+        beats={momentumBeats}
+        player1={activePlayer?.name || "Player"}
+        player2={opponentName || "Avversario"}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4">
+      <div className="flex flex-col gap-4">
 
-        {/* ── Colonna sinistra ── */}
+        {/* ── Tag panel ── */}
         <div className="flex flex-col gap-4">
 
           {isMatchOver ? (
@@ -831,36 +851,26 @@ export const LiveMatchPage: React.FC = () => {
             />
           )}
 
-          <PatternInsightsPanel
+        </div>
+
+        {/* ── Analytics hub — sotto il tag panel ── */}
+        <div className="flex flex-col gap-4">
+          <LiveAnalyticsPanel
+            svcPct={svcPct} rtnPct={rtnPct} firstPct={firstPct}
+            secondPct={secondPct} momentumLast5={momentumLast5}
             prediction={prediction}
             taggedPrediction={taggedPrediction}
             probText={probText}
-          />
-        </div>
-
-        {/* ── Colonna destra ── */}
-        <div className="flex flex-col gap-4">
-          <LiveStatsPanel
-            svcPct={svcPct} rtnPct={rtnPct} firstPct={firstPct}
-            secondPct={secondPct} momentumLast5={momentumLast5}
-            onSvcPctChange={setSvcPct} onRtnPctChange={setRtnPct}
-            onFirstPctChange={setFirstPct} onSecondPctChange={setSecondPct}
-            onMomentumLast5Change={setMomentumLast5}
+            recordedPoints={recordedPoints}
+            recentFivePoints={recentFivePoints}
+            onExportCsv={handleExportCsv}
             error={error}
           />
-          <WinProbabilityChart recordedPoints={recordedPoints} />
-          {/* Pattern Distribution nascosto temporaneamente
-          <PatternDistributionPanel recordedPoints={recordedPoints} />
-          */}
-          <RecentPointsTimeline recentFivePoints={recentFivePoints} />
-          {/* Match Log nascosto temporaneamente
-          <RecordedPointsPanel recordedPoints={recordedPoints} onExportCsv={handleExportCsv} />
-          */}
         </div>
 
       </div>
-      {/* ── FAB cluster — Court Mode + Condividi ── */}
-      {!isMatchOver && (
+      {/* ── FAB cluster — portal per viewport-fixed corretto con outdoor mode ── */}
+      {!isMatchOver && createPortal(
         <div className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-30 flex flex-col gap-2 items-end">
           {/* Condividi / Spectator */}
           <button
@@ -885,7 +895,8 @@ export const LiveMatchPage: React.FC = () => {
             </svg>
             <span className="text-[10px] font-bold uppercase tracking-wider">Court</span>
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div >
