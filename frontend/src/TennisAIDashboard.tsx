@@ -1,22 +1,74 @@
 // src/TennisAIDashboard.tsx
 // REDESIGN v2 — Design System Tennis AI Pro
-// v4: bottom tab bar per tablet/mobile + nav pills desktop
+// v5: landing page + backend status in header
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { LiveMatchPage } from "./pages/LiveMatchPage";
 import { LiveArchivePage } from "./pages/LiveArchivePage";
 import { InfosysDemoPage } from "./pages/InfosysDemoPage";
 import SpectatorPage from "./pages/SpectatorPage";
+import LandingPage from "./pages/LandingPage";
 import Logo from "./components/ui/Logo";
 import { TacticsIcon, LayersIcon, AIIcon } from "./components/ui/icons";
 import SpinnerFAB from "./components/spinner/SpinnerFAB";
 import SpinnerPanel from "./components/spinner/SpinnerPanel";
+import { useBackendStatus, type BackendStatus } from "./hooks/useBackendStatus";
 
 type Mode = "live" | "liveArchive" | "infosysDemo";
+
+// ── Backend status badge — shown in the dashboard header ─────────────────────
+function BackendBadge({
+  status,
+  onCheck,
+}: {
+  status: BackendStatus;
+  onCheck: () => void;
+}) {
+  const dotClass: Record<BackendStatus, string> = {
+    unknown: "bg-white/30",
+    checking: "bg-clay-amber animate-pulse",
+    online: "bg-ace-lime",
+    offline: "bg-red-400",
+  };
+  const labelClass: Record<BackendStatus, string> = {
+    unknown: "text-fog/40",
+    checking: "text-clay-amber",
+    online: "text-ace-lime",
+    offline: "text-red-400",
+  };
+  const label: Record<BackendStatus, string> = {
+    unknown: "Backend",
+    checking: "…",
+    online: "Online",
+    offline: "Offline",
+  };
+
+  return (
+    <button
+      onClick={onCheck}
+      title={
+        status === "offline"
+          ? "Backend non raggiungibile — clicca per riprovare"
+          : status === "online"
+          ? "Backend online"
+          : "Controlla stato backend"
+      }
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotClass[status]}`} />
+      <span className={`text-[11px] font-semibold leading-none ${labelClass[status]}`}>
+        {label[status]}
+      </span>
+    </button>
+  );
+}
 
 export const TennisAIDashboard: React.FC = () => {
   const [mode, setMode] = useState<Mode>("live");
   const [spinnerOpen, setSpinnerOpen] = useState(false);
+  const [showLanding, setShowLanding] = useState<boolean>(true);
+
+  const { status: backendStatus, check: checkBackend } = useBackendStatus(60000);
 
   // ── Spectator mode — se ?spectate=ID nell'URL, mostra la vista sola lettura ──
   const spectateId = new URLSearchParams(window.location.search).get("spectate");
@@ -63,6 +115,18 @@ export const TennisAIDashboard: React.FC = () => {
     });
   }, []);
 
+  // ── Landing page ─────────────────────────────────────────────────────────────
+  if (showLanding) {
+    return (
+      <LandingPage
+        onEnter={(selectedMode) => {
+          setMode(selectedMode);
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
+
   return (
     <>
       {/* ── Main content — pb-20 su mobile/tablet per non essere nascosto dal bottom nav ── */}
@@ -72,12 +136,18 @@ export const TennisAIDashboard: React.FC = () => {
           {/* ── Header ── */}
           <header className="sticky top-0 z-50 bg-court-night/90 backdrop-blur-md -mx-3 px-3 md:-mx-4 md:px-4 py-2 border-b border-white/[0.06] flex items-center justify-between gap-2">
 
-            {/* Logo / titolo */}
+            {/* Logo / titolo — cliccabile per tornare alla landing */}
             <h1 className="flex items-baseline gap-2">
-              <Logo variant="wordmark" size="lg" />
-              <span className="hidden md:inline font-head text-[28px] text-fog/80 font-normal tracking-tight leading-none">
-                Dashboard
-              </span>
+              <button
+                onClick={() => setShowLanding(true)}
+                className="flex items-baseline gap-2 hover:opacity-80 transition-opacity"
+                title="Torna alla schermata iniziale"
+              >
+                <Logo variant="wordmark" size="lg" />
+                <span className="hidden md:inline font-head text-[28px] text-fog/80 font-normal tracking-tight leading-none">
+                  Dashboard
+                </span>
+              </button>
             </h1>
 
             {/* Nav pills — visibili solo su desktop lg+ */}
@@ -117,8 +187,11 @@ export const TennisAIDashboard: React.FC = () => {
               </button>
             </div>
 
-            {/* Header right: tab indicator + outdoor toggle */}
+            {/* Header right: backend badge + tab indicator + outdoor toggle */}
             <div className="flex items-center gap-2">
+              {/* Backend status badge */}
+              <BackendBadge status={backendStatus} onCheck={checkBackend} />
+
               {/* Tab indicator — mobile only */}
               <div className="flex lg:hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
                 {mode === "live" && (
@@ -161,7 +234,7 @@ export const TennisAIDashboard: React.FC = () => {
 
           {/* ── Contenuto ── */}
           {mode === "live" ? (
-            <LiveMatchPage onOpenSpinner={() => setSpinnerOpen(true)} />
+            <LiveMatchPage onOpenSpinner={() => setSpinnerOpen(true)} backendStatus={backendStatus} />
           ) : mode === "liveArchive" ? (
             <LiveArchivePage onOpenLiveSession={() => setMode("live")} />
           ) : (

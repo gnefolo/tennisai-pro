@@ -30,6 +30,7 @@ import InfosysMomentumStrip, { type MomentumBeat } from "../components/infosys/I
 import LiveAnalyticsPanel from "../components/live/LiveAnalyticsPanel";
 import PatternDistributionPanel from "../components/live/PatternDistributionPanel";
 import { DownloadIcon, ArrowRightIcon } from "../components/ui/icons";
+import type { BackendStatus } from "../hooks/useBackendStatus";
 // Keep-awake: mantiene lo schermo acceso durante il match (solo su Android/iOS)
 let keepAwakePlugin: { keepAwake: () => Promise<void>; allowSleep: () => Promise<void> } | null = null;
 import("@capacitor-community/keep-awake").then(m => { keepAwakePlugin = m.KeepAwake; }).catch(() => {});
@@ -69,9 +70,10 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
 // ── COMPONENTE ────────────────────────────────────────────────────────────────
 interface LiveMatchPageProps {
   onOpenSpinner?: () => void;
+  backendStatus?: BackendStatus;
 }
 
-export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner }) => {
+export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, backendStatus }) => {
   // ── Tutto lo state e i handler sono identici all'originale ────────────────
   const [players, setPlayers] = useState<LivePlayer[]>([]);
   const [sessions, setSessions] = useState<LiveMatchSession[]>([]);
@@ -676,6 +678,26 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner }) =
              style={{ paddingTop: "calc(0.625rem + env(safe-area-inset-top, 0px))" }}>
           <span className="w-2 h-2 rounded-full bg-court-night/50 animate-pulse" />
           Modalità offline — punti registrati localmente, analisi AI non disponibile
+        </div>,
+        document.body
+      )}
+
+      {/* ── Banner Backend — mostrato quando il backend non è raggiungibile ── */}
+      {backendStatus && backendStatus !== "online" && backendStatus !== "unknown" && createPortal(
+        <div
+          className={`fixed left-0 right-0 z-[49] flex items-center justify-center gap-2.5 px-4 py-2 text-[11px] font-semibold backdrop-blur-sm ${
+            !isOnline ? "top-10" : "top-0"
+          } ${
+            backendStatus === "checking"
+              ? "bg-white/[0.06] text-fog/60"
+              : "bg-red-500/20 text-red-300"
+          }`}
+          style={{ paddingTop: !isOnline ? "0.5rem" : "calc(0.5rem + env(safe-area-inset-top, 0px))" }}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${backendStatus === "checking" ? "bg-fog/40 animate-pulse" : "bg-red-400"}`} />
+          {backendStatus === "checking"
+            ? "Verifica connessione backend…"
+            : "Backend non raggiungibile — le analisi AI potrebbero non essere disponibili"}
         </div>,
         document.body
       )}
