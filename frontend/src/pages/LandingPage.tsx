@@ -133,14 +133,54 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
 
   return (
     <div className="min-h-screen bg-court-night flex flex-col items-center justify-center px-4 py-10 relative overflow-hidden">
-      {/* Background tennis court lines decoration */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03]">
+      {/* Background — campo da tennis visto dall'alto (proporzioni reali 78×36 ft) */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.07]">
         <svg width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
-          <rect x="100" y="80" width="600" height="440" fill="none" stroke="white" strokeWidth="2" />
-          <line x1="400" y1="80" x2="400" y2="520" stroke="white" strokeWidth="1.5" />
-          <rect x="210" y="180" width="380" height="240" fill="none" stroke="white" strokeWidth="1.5" />
-          <line x1="100" y1="300" x2="700" y2="300" stroke="white" strokeWidth="1.5" />
-          <line x1="390" y1="180" x2="410" y2="320" stroke="white" strokeWidth="1" />
+          {/*
+            Campo landscape: asse X = lunghezza (78 ft), asse Y = larghezza (36 ft)
+            Scala: 700px / 78ft = 8.97 px/ft
+            Court: x 50→750 (700px), y 139→461 (322px)
+            Net: x=400 (centro) | Service lines: x=211 e x=589 (±21ft dal net)
+            Singles sidelines: y=179 e y=421 (4.5ft = 40px dentro il doubles)
+            Center service line: y=300 (metà larghezza), da x=211 a x=589
+          */}
+
+          {/* Superficie campo — fill subtile */}
+          <rect x="50" y="139" width="700" height="322" fill="white" opacity="0.04" />
+
+          {/* Boundary esterna (doubles) */}
+          <rect x="50" y="139" width="700" height="322" fill="none" stroke="white" strokeWidth="2" />
+
+          {/* Corsie doubles (alleys) — fill leggermente diverso */}
+          <rect x="50" y="139" width="700" height="40" fill="white" opacity="0.03" />
+          <rect x="50" y="421" width="700" height="40" fill="white" opacity="0.03" />
+
+          {/* Singles sidelines */}
+          <line x1="50" y1="179" x2="750" y2="179" stroke="white" strokeWidth="1.5" />
+          <line x1="50" y1="421" x2="750" y2="421" stroke="white" strokeWidth="1.5" />
+
+          {/* Rete — linea più spessa al centro */}
+          <line x1="400" y1="133" x2="400" y2="467" stroke="white" strokeWidth="3" />
+          {/* Paletti rete */}
+          <rect x="396" y="128" width="8" height="10" rx="2" fill="white" opacity="0.9" />
+          <rect x="396" y="462" width="8" height="10" rx="2" fill="white" opacity="0.9" />
+
+          {/* Service lines (solo tra le singles sidelines) */}
+          <line x1="211" y1="179" x2="211" y2="421" stroke="white" strokeWidth="1.5" />
+          <line x1="589" y1="179" x2="589" y2="421" stroke="white" strokeWidth="1.5" />
+
+          {/* Center service line (da service line a service line, al centro della larghezza) */}
+          <line x1="211" y1="300" x2="589" y2="300" stroke="white" strokeWidth="1.5" />
+
+          {/* Center marks sulle baselines (segmento perpendicolare corto) */}
+          <line x1="50" y1="293" x2="50" y2="307" stroke="white" strokeWidth="2.5" />
+          <line x1="750" y1="293" x2="750" y2="307" stroke="white" strokeWidth="2.5" />
+
+          {/* Service box fill (leggero) per evidenziare le aree */}
+          <rect x="211" y="179" width="189" height="121" fill="white" opacity="0.02" />
+          <rect x="400" y="179" width="189" height="121" fill="white" opacity="0.02" />
+          <rect x="211" y="300" width="189" height="121" fill="white" opacity="0.02" />
+          <rect x="400" y="300" width="189" height="121" fill="white" opacity="0.02" />
         </svg>
       </div>
 
