@@ -68,7 +68,7 @@ export const TennisAIDashboard: React.FC = () => {
   const [spinnerOpen, setSpinnerOpen] = useState(false);
   const [showLanding, setShowLanding] = useState<boolean>(true);
 
-  const { status: backendStatus, check: checkBackend } = useBackendStatus(60000);
+  const { status: backendStatus, check: checkBackend } = useBackendStatus();
 
   // ── Spectator mode — se ?spectate=ID nell'URL, mostra la vista sola lettura ──
   const spectateId = new URLSearchParams(window.location.search).get("spectate");
