@@ -26,6 +26,18 @@ async function pingBackend(): Promise<boolean> {
   }
 }
 
+// Pre-loads both ML models on the backend so first point has no lag
+async function warmupBackend(): Promise<void> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 90000);
+    await fetch(`${API_BASE}/api/warmup`, { signal: controller.signal });
+    clearTimeout(t);
+  } catch {
+    // fire-and-forget, ignore errors
+  }
+}
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
   const [selected, setSelected] = useState<DashMode>("live");
   const [backendStatus, setBackendStatus] = useState<BackendStatus>("unknown");
@@ -45,6 +57,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       stopPolling();
       setStartProgress(100);
       setBackendStatus("online");
+      warmupBackend(); // fire-and-forget: pre-carica i modelli ML
     }
     return ok;
   }, []);
@@ -73,6 +86,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
       stopPolling();
       setStartProgress(100);
       setBackendStatus("online");
+      warmupBackend();
       return;
     }
 
@@ -82,6 +96,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnter }) => {
         stopPolling();
         setStartProgress(100);
         setBackendStatus("online");
+        warmupBackend();
       }
     }, 5000);
   }, []);

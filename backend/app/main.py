@@ -9,6 +9,8 @@ import os
 from app.schemas import LiveTaggedPointRequest, LiveTaggedPointResponse
 from app.services.live_service import analyze_live_point
 from app.services.report_service import generate_match_report
+from app.services.win_model import load_win_bundle
+from app.services.pattern_engine import load_pattern_bundle
 
 app = FastAPI(
     title="TennisAI Pro Backend",
@@ -112,6 +114,13 @@ def health():
         "version": "3.0.0",
         "ws_clients": manager.client_count,
     }
+
+@app.get("/api/warmup")
+def warmup():
+    """Pre-load all ML models so the first tagged_point call has no lag."""
+    load_win_bundle()
+    load_pattern_bundle()
+    return {"status": "ready"}
 
 @app.post("/api/live/tagged_point", response_model=LiveTaggedPointResponse)
 def live_tagged_point(payload: LiveTaggedPointRequest):
