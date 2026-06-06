@@ -6,11 +6,14 @@ from typing import List, Optional, Dict, Any
 import json
 import os
 
+import joblib
+
 from app.schemas import LiveTaggedPointRequest, LiveTaggedPointResponse
 from app.services.live_service import analyze_live_point
 from app.services.report_service import generate_match_report
 from app.services.win_model import load_win_bundle
 from app.services.pattern_engine import load_pattern_bundle
+from app.settings import TACTICAL_MODEL_PATH, PATTERN_MODEL_PATH
 
 app = FastAPI(
     title="TennisAI Pro Backend",
@@ -101,6 +104,19 @@ class SessionManager:
 
 
 session_manager = SessionManager()
+
+# ─── Startup: re-pickle models with current sklearn version ─────────────────
+@app.on_event("startup")
+def repickle_models_on_startup():
+    """Reload and re-save .pkl bundles so sklearn version tag matches the installed
+    version, eliminating InconsistentVersionWarning on every subsequent load."""
+    try:
+        joblib.dump(joblib.load(TACTICAL_MODEL_PATH), TACTICAL_MODEL_PATH)
+        joblib.dump(joblib.load(PATTERN_MODEL_PATH), PATTERN_MODEL_PATH)
+        load_win_bundle.cache_clear()
+        load_pattern_bundle.cache_clear()
+    except Exception:
+        pass  # don't crash startup if re-pickle fails
 
 # ─── In-memory player store ──────────────────────────────────────────────────
 _player_store: Dict[str, dict] = {}

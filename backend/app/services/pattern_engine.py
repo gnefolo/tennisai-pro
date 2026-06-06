@@ -92,8 +92,9 @@ def classify_pattern_rule(row: Dict[str, Any], proba: float) -> int:
 
 
 def predict_pattern_ml(row: Dict[str, Any]) -> Tuple[Optional[int], Optional[float]]:
+    import pandas as pd
     model, features = load_pattern_bundle()
-    x = [[safe_float(row.get(col, 0.0), 0.0) for col in features]]
+    x = pd.DataFrame([[safe_float(row.get(col, 0.0), 0.0) for col in features]], columns=features)
     pred = int(model.predict(x)[0])
     conf = float(model.predict_proba(x)[0].max())
     return pred, conf
