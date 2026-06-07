@@ -494,7 +494,21 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
       const isNormalSetWin = (myG >= 6 && myG >= opG + 2) || (opG >= 6 && opG >= myG + 2);
       if (isTiebreakResult || isNormalSetWin) winSet(myG > opG ? "me" : "opponent");
     };
-    if (winner === "me") {
+    const inTiebreak = myG === 6 && opG === 6;
+    if (inTiebreak) {
+      // Tiebreak: numeric scoring — first to 7+ with 2-point margin wins the game
+      const myN = myP === "0" ? 0 : (parseInt(myP, 10) || 0);
+      const opN = opP === "0" ? 0 : (parseInt(opP, 10) || 0);
+      if (winner === "me") {
+        const ns = myN + 1;
+        if (ns >= 7 && ns - opN >= 2) winGame("me");
+        else myP = String(ns);
+      } else {
+        const ns = opN + 1;
+        if (ns >= 7 && ns - myN >= 2) winGame("opponent");
+        else opP = String(ns);
+      }
+    } else if (winner === "me") {
       if (myP === "40" && opP === "Ad") opP = "40";
       else if (myP === "40" && opP === "40") myP = "Ad";
       else if (myP === "Ad") winGame("me");

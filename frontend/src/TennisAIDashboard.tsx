@@ -13,6 +13,7 @@ import { TacticsIcon, LayersIcon, AIIcon } from "./components/ui/icons";
 import SpinnerFAB from "./components/spinner/SpinnerFAB";
 import SpinnerPanel from "./components/spinner/SpinnerPanel";
 import { useBackendStatus, type BackendStatus } from "./hooks/useBackendStatus";
+import { useT } from "./i18n/LanguageContext";
 
 type Mode = "live" | "liveArchive" | "infosysDemo";
 
@@ -67,6 +68,7 @@ export const TennisAIDashboard: React.FC = () => {
   const [mode, setMode] = useState<Mode>("live");
   const [spinnerOpen, setSpinnerOpen] = useState(false);
   const [showLanding, setShowLanding] = useState<boolean>(true);
+  const { lang, setLang, t } = useT();
 
   const { status: backendStatus, check: checkBackend } = useBackendStatus();
 
@@ -161,7 +163,7 @@ export const TennisAIDashboard: React.FC = () => {
                 }`}
               >
                 <TacticsIcon size={16} />
-                Live Match
+                {t.liveMatch}
               </button>
               <button
                 onClick={() => setMode("liveArchive")}
@@ -172,7 +174,7 @@ export const TennisAIDashboard: React.FC = () => {
                 }`}
               >
                 <LayersIcon size={16} />
-                Archivio Match
+                {t.archive}
               </button>
               <button
                 onClick={() => setMode("infosysDemo")}
@@ -183,25 +185,34 @@ export const TennisAIDashboard: React.FC = () => {
                 }`}
               >
                 <AIIcon size={16} />
-                Infosys Demo
+                {t.demo}
               </button>
             </div>
 
-            {/* Header right: backend badge + tab indicator + outdoor toggle */}
+            {/* Header right: lang toggle + backend badge + tab indicator + outdoor toggle */}
             <div className="flex items-center gap-2">
               {/* Backend status badge */}
               <BackendBadge status={backendStatus} onCheck={checkBackend} />
 
+              {/* Language toggle IT/EN */}
+              <button
+                onClick={() => setLang(lang === "it" ? "en" : "it")}
+                title={t.language}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition-all text-[11px] font-bold text-fog/60 hover:text-baseline"
+              >
+                {lang === "it" ? "IT" : "EN"}
+              </button>
+
               {/* Tab indicator — mobile only */}
               <div className="flex lg:hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
                 {mode === "live" && (
-                  <><TacticsIcon size={14} /><span className="text-[12px] font-semibold text-ace-lime">Live Match</span></>
+                  <><TacticsIcon size={14} /><span className="text-[12px] font-semibold text-ace-lime">{t.liveMatch}</span></>
                 )}
                 {mode === "liveArchive" && (
-                  <><LayersIcon size={14} /><span className="text-[12px] font-semibold text-ace-lime">Archivio</span></>
+                  <><LayersIcon size={14} /><span className="text-[12px] font-semibold text-ace-lime">{t.archive}</span></>
                 )}
                 {mode === "infosysDemo" && (
-                  <><AIIcon size={14} /><span className="text-[12px] font-semibold text-ace-lime">Demo</span></>
+                  <><AIIcon size={14} /><span className="text-[12px] font-semibold text-ace-lime">{t.demo}</span></>
                 )}
               </div>
 
@@ -269,7 +280,7 @@ export const TennisAIDashboard: React.FC = () => {
               <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-ace-lime" />
             )}
             <TacticsIcon size={22} />
-            Live Match
+            {t.liveMatch}
           </button>
 
           <button
@@ -282,7 +293,7 @@ export const TennisAIDashboard: React.FC = () => {
               <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-ace-lime" />
             )}
             <LayersIcon size={22} />
-            Archivio
+            {t.archive}
           </button>
 
           <button
@@ -295,7 +306,7 @@ export const TennisAIDashboard: React.FC = () => {
               <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-ace-lime" />
             )}
             <AIIcon size={22} />
-            Demo
+            {t.demo}
           </button>
 
         </div>

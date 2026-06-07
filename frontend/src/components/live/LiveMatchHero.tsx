@@ -5,6 +5,8 @@
 
 import React from "react";
 import { SettingsIcon, RefreshIcon, LiveDotIcon } from "../../components/ui/icons";
+import { useT } from "../../i18n/LanguageContext";
+import type { Translations } from "../../i18n/translations";
 
 // ─── TIPI (invariati) ────────────────────────────────────────────────────────
 type OnServe = "me" | "opponent";
@@ -71,7 +73,8 @@ function cleanName(name?: string, fallback = "Player"): string {
 function getPressureStateFallback(
     pointScoreMe: string,
     pointScoreOpp: string,
-    onServe: OnServe
+    onServe: OnServe,
+    t: Translations
 ): { label: string; tone: string } {
     const isAdvantageSituation = (scoreA: string, scoreB: string) => {
         if (scoreA === "Ad") return true;
@@ -98,19 +101,19 @@ function getPressureStateFallback(
         pointScoreOpp === "Ad"
     ) {
         return {
-            label: "Deuce / Advantage",
+            label: t.deuceAdvantage,
             tone: "border-clay-amber/30 bg-clay-amber/10 text-clay-amber",
         };
     }
     if (isGamePointAgainst) {
         return {
-            label: "Game Point Against",
+            label: t.gamePointAgainst,
             tone: "border-error/30 bg-error/10 text-error",
         };
     }
     if (isBreakPoint) {
         return {
-            label: onServe === "me" ? "Break Point Against" : "Break Point For",
+            label: onServe === "me" ? t.breakPointAgainst : t.breakPointFor,
             tone:
                 onServe === "me"
                     ? "border-error/30 bg-error/10 text-error"
@@ -119,7 +122,7 @@ function getPressureStateFallback(
     }
     if (isGamePoint) {
         return {
-            label: onServe === "me" ? "Game Point For" : "Game Point Opponent",
+            label: onServe === "me" ? t.gamePointFor : t.gamePointAgainst,
             tone:
                 onServe === "me"
                     ? "border-success/30 bg-success/10 text-success"
@@ -127,7 +130,7 @@ function getPressureStateFallback(
         };
     }
     return {
-        label: "Neutral Point",
+        label: t.neutralPoint,
         tone: "border-white/10 bg-court-night/70 text-fog",
     };
 }
@@ -162,13 +165,13 @@ function mapPressureTone(pressure?: string) {
     }
 }
 
-function mapPressureLabel(pressure?: string) {
+function mapPressureLabel(pressure: string | undefined, t: Translations) {
     switch (pressure) {
-        case "BREAK_POINT_FOR": return "Break Point For";
-        case "BREAK_POINT_AGAINST": return "Break Point Against";
-        case "GAME_POINT_FOR": return "Game Point For";
-        case "GAME_POINT_AGAINST": return "Game Point Against";
-        case "NEUTRAL": return "Neutral Point";
+        case "BREAK_POINT_FOR": return t.breakPointFor;
+        case "BREAK_POINT_AGAINST": return t.breakPointAgainst;
+        case "GAME_POINT_FOR": return t.gamePointFor;
+        case "GAME_POINT_AGAINST": return t.gamePointAgainst;
+        case "NEUTRAL": return t.neutralPoint;
         default: return null;
     }
 }
@@ -203,12 +206,25 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
     onOpenScoreEdit,
     isMatchOver = false,
 }) => {
-    const meName = cleanName(playerName, "Tu");
-    const oppName = cleanName(opponentName, "Avversario");
+    const { t } = useT();
+    const meName = cleanName(playerName, t.player);
+    const oppName = cleanName(opponentName, t.opponent);
 
-    const pressureFallback = getPressureStateFallback(pointScoreMe, pointScoreOpp, onServe);
-    const pressureLabel = mapPressureLabel(pressureState) ?? pressureFallback.label;
+    const pressureFallback = getPressureStateFallback(pointScoreMe, pointScoreOpp, onServe, t);
+    const pressureLabel = mapPressureLabel(pressureState, t) ?? pressureFallback.label;
     const pressureTone = pressureState ? mapPressureTone(pressureState) : pressureFallback.tone;
+
+    const confidenceLabel = (c?: string) => {
+        if (c === "HIGH") return t.high;
+        if (c === "MEDIUM") return t.medium;
+        if (c === "LOW") return t.low;
+        return c || "N/A";
+    };
+    const momentumLabel = (m?: string) => {
+        if (m === "HOT") return t.hot;
+        if (m === "COLD") return t.cold;
+        return t.neutral;
+    };
 
     return (
         <div className="flex flex-col gap-5">
@@ -219,12 +235,12 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                     {/* LIVE / Fine Match badge — DS badge-success / badge-dark */}
                     {isMatchOver ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">
-                            Fine Match
+                            {t.matchOver}
                         </span>
                     ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-success/30 bg-success/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-success">
                             <LiveDotIcon size={10} className="text-success" />
-                            Live
+                            {t.liveMatch}
                         </span>
                     )}
                     {/* Meta pills — DS badge-neutral */}
@@ -240,7 +256,7 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                             className="inline-flex items-center gap-2 rounded-[var(--r-pill)] border border-white/10 bg-court-night/80 px-4 py-2 text-[13px] font-semibold text-fog transition-all duration-[var(--dur-fast)] hover:border-ace-lime/40 hover:text-baseline"
                         >
                             <SettingsIcon size={16} />
-                            Impostazioni Match
+                            {t.settings}
                         </button>
                     )}
                     {onResetMatch && (
@@ -249,7 +265,7 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                             className="inline-flex items-center gap-2 rounded-[var(--r-pill)] border border-error/20 bg-error/5 px-4 py-2 text-[13px] font-semibold text-error/70 transition-all duration-[var(--dur-fast)] hover:border-error/50 hover:bg-error/10 hover:text-error"
                         >
                             <RefreshIcon size={16} />
-                            Reset Match
+                            {t.resetMatch}
                         </button>
                     )}
                 </div>
@@ -259,7 +275,7 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                     <div className="text-[10px] uppercase tracking-[0.22em] text-fog/50 font-semibold">
-                        Match Center
+                        {t.matchCenter}
                     </div>
                     <div className="mt-1 font-head text-xl md:text-2xl font-semibold tracking-tight text-baseline">
                         {tournament}
@@ -267,21 +283,21 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     {/* Counter badges — DS badge-dark (court-night + ace-lime) */}
-                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Set {setNumber}</span>
-                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Game {gameNumber}</span>
-                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">Point {pointNumber}</span>
+                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">{t.set} {setNumber}</span>
+                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">{t.game} {gameNumber}</span>
+                    <span className="inline-flex items-center rounded-full border border-white/[0.10] bg-court-night px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-ace-lime">{t.point} {pointNumber}</span>
                     {/* Score quick-edit — visibile solo se non match over */}
                     {onOpenScoreEdit && !isMatchOver && (
                         <button
                             onClick={onOpenScoreEdit}
                             className="inline-flex items-center gap-1.5 rounded-full border border-clay-amber/30 bg-clay-amber/[0.08] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-clay-amber hover:bg-clay-amber/15 hover:border-clay-amber/50 transition-all"
-                            title="Correggi punteggio"
+                            title={t.edit}
                         >
                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
-                            Correggi
+                            {t.edit}
                         </button>
                     )}
                 </div>
@@ -297,29 +313,28 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                     <div className="px-5 py-6 md:px-8 md:py-8">
                         <div className="flex items-center gap-2 mb-3">
                             <span className="text-[11px] uppercase tracking-[0.18em] text-fog/50 font-semibold">
-                                Player
+                                {t.player}
                             </span>
-                            {onServe === "me" ? <span className={servingBadge}>Serving</span> : null}
+                            {onServe === "me" ? <span className={servingBadge}>{t.serving}</span> : null}
                         </div>
                         <div className="font-head text-2xl md:text-3xl font-semibold tracking-tight text-baseline truncate">
                             {meName}
                         </div>
                         <div className="mt-5 grid grid-cols-3 gap-3 md:gap-5">
                             <div>
-                                <div className={labelClass}>Set</div>
+                                <div className={labelClass}>{t.set}</div>
                                 <div className="mt-2 font-head text-3xl md:text-5xl font-semibold leading-none text-baseline">
                                     {setsMe}
                                 </div>
                             </div>
                             <div>
-                                <div className={labelClass}>Game</div>
+                                <div className={labelClass}>{t.game}</div>
                                 <div className="mt-2 font-head text-3xl md:text-5xl font-semibold leading-none text-baseline">
                                     {gamesMe}
                                 </div>
                             </div>
                             <div>
-                                <div className={labelClass}>Point</div>
-                                {/* Ace Lime per il punteggio punto — accent principale del DS */}
+                                <div className={labelClass}>{t.point}</div>
                                 <div className="mt-2 font-head text-4xl md:text-6xl font-bold leading-none text-ace-lime">
                                     {pointScoreMe}
                                 </div>
@@ -337,9 +352,9 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                     {/* OPPONENT */}
                     <div className="px-5 py-6 md:px-8 md:py-8 border-t border-white/[0.06] lg:border-t-0">
                         <div className="flex items-center justify-end gap-2 mb-3">
-                            {onServe === "opponent" ? <span className={servingBadge}>Serving</span> : null}
+                            {onServe === "opponent" ? <span className={servingBadge}>{t.serving}</span> : null}
                             <span className="text-[11px] uppercase tracking-[0.18em] text-fog/50 font-semibold">
-                                Opponent
+                                {t.opponent}
                             </span>
                         </div>
                         <div className="font-head text-right text-2xl md:text-3xl font-semibold tracking-tight text-baseline truncate">
@@ -347,19 +362,19 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                         </div>
                         <div className="mt-5 grid grid-cols-3 gap-3 md:gap-5 text-right">
                             <div>
-                                <div className={labelClass}>Set</div>
+                                <div className={labelClass}>{t.set}</div>
                                 <div className="mt-2 font-head text-3xl md:text-5xl font-semibold leading-none text-baseline">
                                     {setsOpp}
                                 </div>
                             </div>
                             <div>
-                                <div className={labelClass}>Game</div>
+                                <div className={labelClass}>{t.game}</div>
                                 <div className="mt-2 font-head text-3xl md:text-5xl font-semibold leading-none text-baseline">
                                     {gamesOpp}
                                 </div>
                             </div>
                             <div>
-                                <div className={labelClass}>Point</div>
+                                <div className={labelClass}>{t.point}</div>
                                 <div className="mt-2 font-head text-4xl md:text-6xl font-bold leading-none text-ace-lime">
                                     {pointScoreOpp}
                                 </div>
@@ -373,43 +388,42 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
 
                     {/* Point Win Probability */}
                     <div className="bg-court-night/90 px-4 py-4">
-                        <div className={labelClass}>Point Win</div>
-                        {/* success green — invariato semanticamente */}
+                        <div className={labelClass}>{t.pointWin}</div>
                         <div className="mt-2 font-head text-3xl font-bold tracking-tight text-success">
                             {pointProbability}
                         </div>
-                        <div className="mt-1 text-[11px] text-fog/40">Estimated probability</div>
+                        <div className="mt-1 text-[11px] text-fog/40">{t.estimatedProbability}</div>
                     </div>
 
                     {/* Confidence */}
                     <div className="bg-court-night/90 px-4 py-4">
-                        <div className={labelClass}>Confidence</div>
+                        <div className={labelClass}>{t.confidence}</div>
                         <div className="mt-3">
                             <span
                                 className={`inline-flex rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${mapConfidenceTone(tacticalConfidence)}`}
                             >
-                                {tacticalConfidence || "N/A"}
+                                {confidenceLabel(tacticalConfidence)}
                             </span>
                         </div>
-                        <div className="mt-2 text-[11px] text-fog/40">Model confidence band</div>
+                        <div className="mt-2 text-[11px] text-fog/40">{t.modelConfidence}</div>
                     </div>
 
                     {/* Momentum */}
                     <div className="bg-court-night/90 px-4 py-4">
-                        <div className={labelClass}>Momentum</div>
+                        <div className={labelClass}>{t.momentum}</div>
                         <div className="mt-3">
                             <span
                                 className={`inline-flex rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${mapMomentumTone(momentumState)}`}
                             >
-                                {momentumState || "NEUTRAL"}
+                                {momentumLabel(momentumState)}
                             </span>
                         </div>
-                        <div className="mt-2 text-[11px] text-fog/40">Current live state</div>
+                        <div className="mt-2 text-[11px] text-fog/40">{t.currentState}</div>
                     </div>
 
                     {/* Pressure */}
                     <div className="bg-court-night/90 px-4 py-4">
-                        <div className={labelClass}>Pressure</div>
+                        <div className={labelClass}>{t.pressure}</div>
                         <div className="mt-3">
                             <span
                                 className={`inline-flex rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${pressureTone}`}
@@ -417,17 +431,16 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
                                 {pressureLabel}
                             </span>
                         </div>
-                        <div className="mt-2 text-[11px] text-fog/40">Current score situation</div>
+                        <div className="mt-2 text-[11px] text-fog/40">{t.currentSituation}</div>
                     </div>
 
                     {/* Points Logged */}
                     <div className="bg-court-night/90 px-4 py-4">
-                        <div className={labelClass}>Points Logged</div>
-                        {/* clay-amber: colore dataset/numeri di riferimento */}
+                        <div className={labelClass}>{t.pointsLogged}</div>
                         <div className="mt-2 font-head text-3xl font-bold tracking-tight text-clay-amber">
                             {recordedPoints}
                         </div>
-                        <div className="mt-1 text-[11px] text-fog/40">Current live dataset</div>
+                        <div className="mt-1 text-[11px] text-fog/40">{t.currentDataset}</div>
                     </div>
 
                 </div>
@@ -438,16 +451,15 @@ const LiveMatchHero: React.FC<LiveMatchHeroProps> = ({
             <div className="rounded-[var(--r-lg)] border border-ace-lime/20 bg-[linear-gradient(135deg,rgba(11,18,32,0.60),rgba(11,18,32,0.97),rgba(212,255,58,0.04))] px-5 py-5 md:px-6 md:py-6 shadow-[var(--e-2)]">
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div className="flex-1">
-                        {/* Eyebrow label in ace-lime — colore identità del DS */}
                         <div className="text-[10px] uppercase tracking-[0.24em] text-ace-lime font-bold">
-                            Tactical Insight
+                            {t.tacticalInsight}
                         </div>
                         <div className="mt-2 font-body text-sm md:text-base font-semibold leading-relaxed text-baseline">
                             {tacticalCall}
                         </div>
                     </div>
                     <div className="text-[11px] text-fog/40 md:pl-6 md:text-right">
-                        Real-time coaching layer
+                        {t.realtimeCoaching}
                     </div>
                 </div>
             </div>

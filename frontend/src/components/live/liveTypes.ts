@@ -74,7 +74,7 @@ export type PlayStyle =
 
 export type Surface = "Hard" | "Clay" | "Grass" | "Other";
 export type MatchType = "BO3" | "BO5";
-export type PointScore = "0" | "15" | "30" | "40" | "Ad";
+export type PointScore = "0" | "15" | "30" | "40" | "Ad" | string;
 export type ServeDirection = "T" | "BODY" | "WIDE";
 
 export type ServeQuality = "SAFE" | "AGGRESSIVE" | "WEAK";
