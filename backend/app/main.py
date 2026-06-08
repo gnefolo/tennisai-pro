@@ -9,6 +9,7 @@ import os
 
 import joblib
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from app.schemas import LiveTaggedPointRequest, LiveTaggedPointResponse
 from app.services.live_service import analyze_live_point
@@ -18,7 +19,10 @@ from app.services.pattern_engine import load_pattern_bundle
 from app.settings import TACTICAL_MODEL_PATH, PATTERN_MODEL_PATH
 from app.database import engine, get_db, Base
 from app.user_model import User
+from app.invite_model import InviteKey, _gen_code
 from app.auth_utils import hash_password, verify_password, create_token, decode_token
+
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "giovanni.graziano@openeconomics.eu").lower()
 
 app = FastAPI(
     title="TennisAI Pro Backend",
@@ -113,8 +117,17 @@ session_manager = SessionManager()
 # ─── Startup ─────────────────────────────────────────────────────────────────
 @app.on_event("startup")
 def on_startup():
-    # Create auth tables
     Base.metadata.create_all(bind=engine)
+    # Migrate existing users table: add columns if not present
+    with engine.begin() as conn:
+        for sql in [
+            "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN is_approved BOOLEAN DEFAULT FALSE",
+        ]:
+            try:
+                conn.execute(text(sql))
+            except Exception:
+                pass
     # Re-pickle ML models to silence sklearn version warnings
     try:
         joblib.dump(joblib.load(TACTICAL_MODEL_PATH), TACTICAL_MODEL_PATH)
@@ -148,6 +161,7 @@ class RegisterRequest(BaseModel):
     email: str
     name: str
     password: str
+    invite_key: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: str
@@ -159,8 +173,29 @@ class TokenResponse(BaseModel):
     user_id: int
     user_name: str
     user_email: str
+    is_admin: bool = False
+    is_approved: bool = False
 
 # ─── Auth Endpoints ───────────────────────────────────────────────────────────
+
+def _ensure_admin(user: User, db: Session):
+    """Promote user to admin+approved if email matches ADMIN_EMAIL."""
+    if user.email == ADMIN_EMAIL and (not user.is_admin or not user.is_approved):
+        user.is_admin = True
+        user.is_approved = True
+        db.commit()
+        db.refresh(user)
+
+def _token_response(user: User) -> TokenResponse:
+    token = create_token(user.id, user.email, user.name)
+    return TokenResponse(
+        access_token=token,
+        user_id=user.id,
+        user_name=user.name,
+        user_email=user.email,
+        is_admin=user.is_admin,
+        is_approved=user.is_approved,
+    )
 
 @app.post("/api/auth/register", response_model=TokenResponse, status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
@@ -173,12 +208,39 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(422, "La password deve avere almeno 6 caratteri")
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(409, "Email già registrata")
-    user = User(email=email, name=body.name.strip(), hashed_password=hash_password(body.password))
+
+    # Validate invite key if provided
+    key_obj = None
+    if body.invite_key:
+        key_obj = db.query(InviteKey).filter(
+            InviteKey.code == body.invite_key.strip().upper(),
+            InviteKey.is_used == False,
+        ).first()
+        if not key_obj:
+            raise HTTPException(400, "Chiave invito non valida o già usata")
+
+    # Admin email always gets immediate access
+    is_admin = email == ADMIN_EMAIL
+    is_approved = is_admin or (key_obj is not None)
+
+    user = User(
+        email=email,
+        name=body.name.strip(),
+        hashed_password=hash_password(body.password),
+        is_admin=is_admin,
+        is_approved=is_approved,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
-    token = create_token(user.id, user.email, user.name)
-    return TokenResponse(access_token=token, user_id=user.id, user_name=user.name, user_email=user.email)
+
+    if key_obj:
+        key_obj.is_used = True
+        key_obj.used_by_id = user.id
+        key_obj.used_at = __import__("datetime").datetime.utcnow()
+        db.commit()
+
+    return _token_response(user)
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
@@ -186,12 +248,78 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(401, "Credenziali non corrette")
-    token = create_token(user.id, user.email, user.name)
-    return TokenResponse(access_token=token, user_id=user.id, user_name=user.name, user_email=user.email)
+    _ensure_admin(user, db)
+    if not user.is_approved:
+        raise HTTPException(403, "Account in attesa di approvazione")
+    return _token_response(user)
 
 @app.get("/api/auth/me")
 def me(current_user: User = Depends(get_current_user)):
-    return {"id": current_user.id, "name": current_user.name, "email": current_user.email}
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "is_admin": current_user.is_admin,
+        "is_approved": current_user.is_approved,
+    }
+
+# ─── Admin dependency ──────────────────────────────────────────────────────────
+
+def get_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(403, "Accesso riservato agli amministratori")
+    return current_user
+
+# ─── Admin endpoints ──────────────────────────────────────────────────────────
+
+@app.get("/api/admin/requests")
+def admin_requests(db: Session = Depends(get_db), _: User = Depends(get_admin)):
+    users = db.query(User).filter(User.is_approved == False, User.is_admin == False).order_by(User.created_at.desc()).all()
+    return [{"id": u.id, "name": u.name, "email": u.email, "created_at": u.created_at.isoformat()} for u in users]
+
+@app.post("/api/admin/approve/{user_id}")
+def admin_approve(user_id: int, db: Session = Depends(get_db), _: User = Depends(get_admin)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "Utente non trovato")
+    user.is_approved = True
+    db.commit()
+    return {"status": "approved", "user_id": user_id}
+
+@app.get("/api/admin/users")
+def admin_users(db: Session = Depends(get_db), _: User = Depends(get_admin)):
+    users = db.query(User).filter(User.is_approved == True).order_by(User.created_at.desc()).all()
+    return [{"id": u.id, "name": u.name, "email": u.email, "is_admin": u.is_admin, "created_at": u.created_at.isoformat()} for u in users]
+
+class CreateKeyRequest(BaseModel):
+    note: Optional[str] = None
+
+@app.post("/api/admin/keys", status_code=201)
+def admin_create_key(body: CreateKeyRequest, db: Session = Depends(get_db), _: User = Depends(get_admin)):
+    key = InviteKey(code=_gen_code(), note=body.note)
+    db.add(key)
+    db.commit()
+    db.refresh(key)
+    return {"id": key.id, "code": key.code, "note": key.note, "created_at": key.created_at.isoformat()}
+
+@app.get("/api/admin/keys")
+def admin_list_keys(db: Session = Depends(get_db), _: User = Depends(get_admin)):
+    keys = db.query(InviteKey).order_by(InviteKey.created_at.desc()).all()
+    return [{
+        "id": k.id, "code": k.code, "note": k.note,
+        "is_used": k.is_used, "used_by_id": k.used_by_id,
+        "used_at": k.used_at.isoformat() if k.used_at else None,
+        "created_at": k.created_at.isoformat(),
+    } for k in keys]
+
+@app.delete("/api/admin/keys/{key_id}")
+def admin_revoke_key(key_id: int, db: Session = Depends(get_db), _: User = Depends(get_admin)):
+    key = db.query(InviteKey).filter(InviteKey.id == key_id).first()
+    if not key:
+        raise HTTPException(404, "Chiave non trovata")
+    db.delete(key)
+    db.commit()
+    return {"status": "deleted"}
 
 @app.post("/api/auth/change-password")
 def change_password(

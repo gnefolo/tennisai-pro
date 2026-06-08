@@ -65,7 +65,12 @@ function BackendBadge({
   );
 }
 
-export const TennisAIDashboard: React.FC = () => {
+interface DashboardProps {
+  onOpenProfile: () => void;
+  onOpenAdmin?: () => void;
+}
+
+export const TennisAIDashboard: React.FC<DashboardProps> = ({ onOpenProfile, onOpenAdmin }) => {
   const [mode, setMode] = useState<Mode>("live");
   const [spinnerOpen, setSpinnerOpen] = useState(false);
   const [showLanding, setShowLanding] = useState<boolean>(true);
@@ -196,16 +201,21 @@ export const TennisAIDashboard: React.FC = () => {
               {/* Backend status badge */}
               <BackendBadge status={backendStatus} onCheck={checkBackend} />
 
-              {/* User name + logout */}
+              {/* User name → profile + optional admin button */}
               {user && (
-                <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-fog/50 max-w-[100px] truncate">{user.name}</span>
-                  <button
-                    onClick={logout}
-                    title={t.logout}
-                    className="text-[11px] font-semibold text-fog/40 hover:text-red-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-400/10"
-                  >
-                    {t.logout}
+                <div className="hidden sm:flex items-center gap-1.5">
+                  {onOpenAdmin && (
+                    <button onClick={onOpenAdmin} title={t.adminPanel}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-ace-lime/20 bg-ace-lime/[0.05] hover:bg-ace-lime/[0.10] transition-all">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-ace-lime">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                      </svg>
+                      <span className="text-[11px] font-bold text-ace-lime">{t.adminBadge}</span>
+                    </button>
+                  )}
+                  <button onClick={onOpenProfile}
+                    className="text-[11px] font-semibold text-fog/50 hover:text-baseline transition-colors max-w-[100px] truncate px-2 py-1.5 rounded-lg hover:bg-white/[0.04]">
+                    {user.name}
                   </button>
                 </div>
               )}

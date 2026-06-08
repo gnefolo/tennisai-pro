@@ -141,6 +141,46 @@ export const translations = {
     registering: "Registrazione in corso…",
     welcomeBack: "Bentornato",
     passwordMismatch: "Le password non coincidono",
+
+    // ── Pending / Invite
+    pendingTitle: "Account in attesa",
+    pendingSubtitle: "La tua richiesta è stata ricevuta.",
+    pendingNote: "Sarai approvato a breve dall'amministratore.",
+    accountPending: "Account in attesa di approvazione",
+    haveInviteKey: "Ho una chiave invito",
+    inviteKey: "Chiave invito",
+    inviteKeyPlaceholder: "TAI-XXXXXXXX",
+    inviteKeyOptional: "Opzionale — accesso immediato",
+    invalidKey: "Chiave invito non valida o già usata",
+
+    // ── User profile
+    myProfile: "Il mio profilo",
+    joinedAt: "Iscritto il",
+    changePassword: "Cambia password",
+    currentPassword: "Password attuale",
+    newPassword: "Nuova password",
+    saveChanges: "Salva modifiche",
+    passwordChanged: "Password aggiornata",
+    backToDashboard: "Torna alla dashboard",
+
+    // ── Admin
+    adminPanel: "Pannello Admin",
+    pendingRequests: "Richieste",
+    inviteKeys: "Chiavi Invito",
+    allUsers: "Utenti",
+    createKey: "Crea chiave",
+    keyNote: "Destinatario (opzionale)",
+    keyNotePlaceholder: "es. Mario Rossi",
+    approve: "Approva",
+    revoke: "Elimina",
+    copyKey: "Copia",
+    keyCopied: "Copiato!",
+    noRequests: "Nessuna richiesta in attesa",
+    noKeys: "Nessuna chiave creata",
+    noUsers: "Nessun utente registrato",
+    usedKey: "Usata",
+    availableKey: "Disponibile",
+    adminBadge: "Admin",
   },
 
   en: {
@@ -281,6 +321,46 @@ export const translations = {
     registering: "Creating account…",
     welcomeBack: "Welcome back",
     passwordMismatch: "Passwords do not match",
+
+    // ── Pending / Invite
+    pendingTitle: "Account pending",
+    pendingSubtitle: "Your request has been received.",
+    pendingNote: "You will be approved by the administrator shortly.",
+    accountPending: "Account awaiting approval",
+    haveInviteKey: "I have an invite key",
+    inviteKey: "Invite key",
+    inviteKeyPlaceholder: "TAI-XXXXXXXX",
+    inviteKeyOptional: "Optional — immediate access",
+    invalidKey: "Invalid or already used invite key",
+
+    // ── User profile
+    myProfile: "My profile",
+    joinedAt: "Joined",
+    changePassword: "Change password",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    saveChanges: "Save changes",
+    passwordChanged: "Password updated",
+    backToDashboard: "Back to dashboard",
+
+    // ── Admin
+    adminPanel: "Admin Panel",
+    pendingRequests: "Requests",
+    inviteKeys: "Invite Keys",
+    allUsers: "Users",
+    createKey: "Create key",
+    keyNote: "Recipient (optional)",
+    keyNotePlaceholder: "e.g. John Smith",
+    approve: "Approve",
+    revoke: "Delete",
+    copyKey: "Copy",
+    keyCopied: "Copied!",
+    noRequests: "No pending requests",
+    noKeys: "No keys created",
+    noUsers: "No registered users",
+    usedKey: "Used",
+    availableKey: "Available",
+    adminBadge: "Admin",
   },
 } as const;
 
