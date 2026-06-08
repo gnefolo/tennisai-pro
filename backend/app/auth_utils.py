@@ -1,22 +1,22 @@
 import os
 from datetime import datetime, timedelta
 from typing import Optional
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "tennisai-dev-secret-CHANGE-IN-PRODUCTION-abc123xyz789")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 30
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(plain: str) -> str:
-    return _pwd.hash(plain)
+    pw_bytes = plain.encode("utf-8")[:72]
+    return bcrypt.hashpw(pw_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd.verify(plain, hashed)
+    pw_bytes = plain.encode("utf-8")[:72]
+    return bcrypt.checkpw(pw_bytes, hashed.encode("utf-8"))
 
 
 def create_token(user_id: int, email: str, name: str) -> str:
