@@ -1,12 +1,14 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional, Dict, Any
 import json
 import os
 
 import joblib
+from sqlalchemy.orm import Session
 
 from app.schemas import LiveTaggedPointRequest, LiveTaggedPointResponse
 from app.services.live_service import analyze_live_point
@@ -14,6 +16,9 @@ from app.services.report_service import generate_match_report
 from app.services.win_model import load_win_bundle
 from app.services.pattern_engine import load_pattern_bundle
 from app.settings import TACTICAL_MODEL_PATH, PATTERN_MODEL_PATH
+from app.database import engine, get_db, Base
+from app.user_model import User
+from app.auth_utils import hash_password, verify_password, create_token, decode_token
 
 app = FastAPI(
     title="TennisAI Pro Backend",
@@ -105,18 +110,104 @@ class SessionManager:
 
 session_manager = SessionManager()
 
-# ─── Startup: re-pickle models with current sklearn version ─────────────────
+# ─── Startup ─────────────────────────────────────────────────────────────────
 @app.on_event("startup")
-def repickle_models_on_startup():
-    """Reload and re-save .pkl bundles so sklearn version tag matches the installed
-    version, eliminating InconsistentVersionWarning on every subsequent load."""
+def on_startup():
+    # Create auth tables
+    Base.metadata.create_all(bind=engine)
+    # Re-pickle ML models to silence sklearn version warnings
     try:
         joblib.dump(joblib.load(TACTICAL_MODEL_PATH), TACTICAL_MODEL_PATH)
         joblib.dump(joblib.load(PATTERN_MODEL_PATH), PATTERN_MODEL_PATH)
         load_win_bundle.cache_clear()
         load_pattern_bundle.cache_clear()
     except Exception:
-        pass  # don't crash startup if re-pickle fails
+        pass
+
+# ─── Auth helpers ─────────────────────────────────────────────────────────────
+
+_bearer = HTTPBearer(auto_error=False)
+
+def get_current_user(
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> User:
+    if not creds:
+        raise HTTPException(status_code=401, detail="Token mancante")
+    payload = decode_token(creds.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token non valido o scaduto")
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Utente non trovato")
+    return user
+
+# ─── Auth Schemas ─────────────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email: str
+    name: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user_id: int
+    user_name: str
+    user_email: str
+
+# ─── Auth Endpoints ───────────────────────────────────────────────────────────
+
+@app.post("/api/auth/register", response_model=TokenResponse, status_code=201)
+def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    email = body.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(422, "Email non valida")
+    if not body.name.strip():
+        raise HTTPException(422, "Il nome non può essere vuoto")
+    if len(body.password) < 6:
+        raise HTTPException(422, "La password deve avere almeno 6 caratteri")
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(409, "Email già registrata")
+    user = User(email=email, name=body.name.strip(), hashed_password=hash_password(body.password))
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_token(user.id, user.email, user.name)
+    return TokenResponse(access_token=token, user_id=user.id, user_name=user.name, user_email=user.email)
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    email = body.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(401, "Credenziali non corrette")
+    token = create_token(user.id, user.email, user.name)
+    return TokenResponse(access_token=token, user_id=user.id, user_name=user.name, user_email=user.email)
+
+@app.get("/api/auth/me")
+def me(current_user: User = Depends(get_current_user)):
+    return {"id": current_user.id, "name": current_user.name, "email": current_user.email}
+
+@app.post("/api/auth/change-password")
+def change_password(
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    old_pw = body.get("old_password", "")
+    new_pw = body.get("new_password", "")
+    if not verify_password(old_pw, current_user.hashed_password):
+        raise HTTPException(401, "Password attuale non corretta")
+    if len(new_pw) < 6:
+        raise HTTPException(422, "La nuova password deve avere almeno 6 caratteri")
+    current_user.hashed_password = hash_password(new_pw)
+    db.commit()
+    return {"status": "ok"}
 
 # ─── In-memory player store ──────────────────────────────────────────────────
 _player_store: Dict[str, dict] = {}

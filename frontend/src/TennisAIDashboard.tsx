@@ -14,6 +14,7 @@ import SpinnerFAB from "./components/spinner/SpinnerFAB";
 import SpinnerPanel from "./components/spinner/SpinnerPanel";
 import { useBackendStatus, type BackendStatus } from "./hooks/useBackendStatus";
 import { useT } from "./i18n/LanguageContext";
+import { useAuth } from "./contexts/AuthContext";
 
 type Mode = "live" | "liveArchive" | "infosysDemo";
 
@@ -69,6 +70,7 @@ export const TennisAIDashboard: React.FC = () => {
   const [spinnerOpen, setSpinnerOpen] = useState(false);
   const [showLanding, setShowLanding] = useState<boolean>(true);
   const { lang, setLang, t } = useT();
+  const { user, logout } = useAuth();
 
   const { status: backendStatus, check: checkBackend } = useBackendStatus();
 
@@ -189,10 +191,24 @@ export const TennisAIDashboard: React.FC = () => {
               </button>
             </div>
 
-            {/* Header right: lang toggle + backend badge + tab indicator + outdoor toggle */}
+            {/* Header right: user info + lang toggle + backend badge + tab indicator + outdoor toggle */}
             <div className="flex items-center gap-2">
               {/* Backend status badge */}
               <BackendBadge status={backendStatus} onCheck={checkBackend} />
+
+              {/* User name + logout */}
+              {user && (
+                <div className="hidden sm:flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-fog/50 max-w-[100px] truncate">{user.name}</span>
+                  <button
+                    onClick={logout}
+                    title={t.logout}
+                    className="text-[11px] font-semibold text-fog/40 hover:text-red-400 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-400/10"
+                  >
+                    {t.logout}
+                  </button>
+                </div>
+              )}
 
               {/* Language toggle IT/EN */}
               <button

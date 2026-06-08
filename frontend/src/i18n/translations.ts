@@ -116,6 +116,31 @@ export const translations = {
 
     // ── Language
     language: "Lingua",
+
+    // ── Auth
+    login: "Accedi",
+    register: "Registrati",
+    logout: "Esci",
+    email: "Email",
+    password: "Password",
+    confirmPassword: "Conferma password",
+    fullName: "Nome completo",
+    loginTitle: "Bentornato",
+    loginSubtitle: "Accedi al tuo account TennisAI Pro",
+    registerTitle: "Crea account",
+    registerSubtitle: "Inizia la tua analisi tattica personalizzata",
+    noAccount: "Non hai un account?",
+    alreadyAccount: "Hai già un account?",
+    forgotPassword: "Password dimenticata?",
+    passwordMinLength: "Minimo 6 caratteri",
+    emailPlaceholder: "nome@esempio.com",
+    namePlaceholder: "Il tuo nome",
+    authError: "Credenziali non corrette",
+    emailTaken: "Email già registrata",
+    loggingIn: "Accesso in corso…",
+    registering: "Registrazione in corso…",
+    welcomeBack: "Bentornato",
+    passwordMismatch: "Le password non coincidono",
   },
 
   en: {
@@ -231,6 +256,31 @@ export const translations = {
 
     // ── Language
     language: "Language",
+
+    // ── Auth
+    login: "Log In",
+    register: "Sign Up",
+    logout: "Log Out",
+    email: "Email",
+    password: "Password",
+    confirmPassword: "Confirm password",
+    fullName: "Full name",
+    loginTitle: "Welcome back",
+    loginSubtitle: "Sign in to your TennisAI Pro account",
+    registerTitle: "Create account",
+    registerSubtitle: "Start your personalized tactical analysis",
+    noAccount: "Don't have an account?",
+    alreadyAccount: "Already have an account?",
+    forgotPassword: "Forgot password?",
+    passwordMinLength: "Minimum 6 characters",
+    emailPlaceholder: "name@example.com",
+    namePlaceholder: "Your name",
+    authError: "Invalid credentials",
+    emailTaken: "Email already registered",
+    loggingIn: "Logging in…",
+    registering: "Creating account…",
+    welcomeBack: "Welcome back",
+    passwordMismatch: "Passwords do not match",
   },
 } as const;
 
