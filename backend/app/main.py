@@ -164,21 +164,27 @@ class TokenResponse(BaseModel):
 
 @app.post("/api/auth/register", response_model=TokenResponse, status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    email = body.email.strip().lower()
-    if not email or "@" not in email:
-        raise HTTPException(422, "Email non valida")
-    if not body.name.strip():
-        raise HTTPException(422, "Il nome non può essere vuoto")
-    if len(body.password) < 6:
-        raise HTTPException(422, "La password deve avere almeno 6 caratteri")
-    if db.query(User).filter(User.email == email).first():
-        raise HTTPException(409, "Email già registrata")
-    user = User(email=email, name=body.name.strip(), hashed_password=hash_password(body.password))
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    token = create_token(user.id, user.email, user.name)
-    return TokenResponse(access_token=token, user_id=user.id, user_name=user.name, user_email=user.email)
+    try:
+        email = body.email.strip().lower()
+        if not email or "@" not in email:
+            raise HTTPException(422, "Email non valida")
+        if not body.name.strip():
+            raise HTTPException(422, "Il nome non può essere vuoto")
+        if len(body.password) < 6:
+            raise HTTPException(422, "La password deve avere almeno 6 caratteri")
+        if db.query(User).filter(User.email == email).first():
+            raise HTTPException(409, "Email già registrata")
+        user = User(email=email, name=body.name.strip(), hashed_password=hash_password(body.password))
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_token(user.id, user.email, user.name)
+        return TokenResponse(access_token=token, user_id=user.id, user_name=user.name, user_email=user.email)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, detail=f"[debug] {type(e).__name__}: {e}")
 
 @app.post("/api/auth/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
