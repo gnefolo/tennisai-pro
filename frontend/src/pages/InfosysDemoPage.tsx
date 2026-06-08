@@ -4,6 +4,7 @@
 // Layout: Header → [Live: Hero + Tag Bar] or [Setup: Wizard modal]
 
 import React, { useState, useCallback, useEffect } from "react";
+import { useT } from "../i18n/LanguageContext";
 import {
   useInfosysDemoState,
   type DemoStep,
@@ -90,34 +91,36 @@ const WIZARD_STEPS = [
 
 /* BackendStatusBadge */
 function BackendStatusBadge({ status }: { status: "unknown" | "online" | "offline" }) {
+  const { t } = useT();
   if (status === "online")
     return (
       <span className={`${pill} border-[#22C55E]/30 bg-[#22C55E]/10 text-[#22C55E]`}>
         <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-        Backend online
+        {t.backendOnline}
       </span>
     );
   if (status === "offline")
     return (
       <span className={`${pill} border-[#E9A23B]/30 bg-[#E9A23B]/10 text-[#E9A23B]`}>
         <span className="w-1.5 h-1.5 rounded-full bg-[#E9A23B]" />
-        Demo fallback
+        {t.demoFallbackBadge}
       </span>
     );
   return (
     <span className={`${pill} border-white/10 bg-white/[0.04] text-[#C9CFDA]/50`}>
       <span className="w-1.5 h-1.5 rounded-full bg-[#C9CFDA]/30" />
-      Connecting…
+      {t.connectingLabel}
     </span>
   );
 }
 
 /* OutputModeSwitch */
 function OutputModeSwitch({ mode, onChange }: { mode: OutputMode; onChange: (m: OutputMode) => void }) {
+  const { t } = useT();
   const modes: { id: OutputMode; label: string }[] = [
-    { id: "fan", label: "Fan" },
-    { id: "coach", label: "Coach" },
-    { id: "media", label: "Media" },
+    { id: "fan", label: t.fan },
+    { id: "coach", label: t.coach },
+    { id: "media", label: t.media },
     { id: "api", label: "Ally/API" },
   ];
   return (
@@ -144,10 +147,11 @@ function InsightDisplay({ mode, insights }: {
   mode: OutputMode;
   insights: { fan: string; coach: string; media: string; apiPayload: object } | null;
 }) {
+  const { t } = useT();
   if (!insights) {
     return (
       <div className="rounded-[12px] border border-dashed border-white/[0.08] p-4 text-center">
-        <p className="text-[12px] text-[#C9CFDA]/40">Complete the workflow to generate insights</p>
+        <p className="text-[12px] text-[#C9CFDA]/40">{t.completeWorkflow}</p>
       </div>
     );
   }
@@ -159,7 +163,7 @@ function InsightDisplay({ mode, insights }: {
     );
   }
   const text = mode === "fan" ? insights.fan : mode === "coach" ? insights.coach : insights.media;
-  const modeLabel = mode === "fan" ? "Fan Insight" : mode === "coach" ? "Coach Insight" : "Media Insight";
+  const modeLabel = mode === "fan" ? t.fanInsight : mode === "coach" ? t.coachInsight : t.mediaInsight;
   return (
     <div className="rounded-[12px] bg-white/[0.02] border border-white/[0.06] p-3">
       <div className={`${label} mb-2`}>{modeLabel}</div>
@@ -237,6 +241,7 @@ function CollapsiblePanel({ title, children, defaultOpen = false }: {
 // ─── PAGINA PRINCIPALE ───────────────────────────────────────────────────────
 
 export const InfosysDemoPage: React.FC = () => {
+  const { t } = useT();
   const state = useInfosysDemoState();
   const {
     currentStep,
@@ -324,6 +329,23 @@ export const InfosysDemoPage: React.FC = () => {
       calculatePrediction();
     }
   }, [selectedScenario, prediction, loading, calculatePrediction]);
+
+  // ── Sync demo context to localStorage for Spinner AI coach ────────────────
+  useEffect(() => {
+    if (!selectedScenario) return;
+    const ctx = {
+      player1: selectedScenario.player1,
+      player2: selectedScenario.player2,
+      surface: selectedScenario.surface,
+      score: scoringDisplay.fullScore,
+      totalPoints: matchState.totalPoints,
+      winRate: matchState.totalPoints > 0 ? Math.round((pointHistory.filter(p => p.won).length / matchState.totalPoints) * 100) : undefined,
+      prediction: prediction?.probability,
+      momentum: prediction?.momentumState,
+      patternName: prediction?.patternName,
+    };
+    localStorage.setItem("tennisai_infosys_context", JSON.stringify(ctx));
+  }, [selectedScenario, prediction, matchState.totalPoints, scoringDisplay.fullScore, pointHistory]);
 
   // ── Live mode: auto-recalculate after tagAndAdvance clears prediction ─────
   // (tagAndAdvance sets prediction=null → selectedScenario is updated → effect above fires)
@@ -506,7 +528,7 @@ export const InfosysDemoPage: React.FC = () => {
                 onClick={openWizard}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-white/[0.08] bg-white/[0.02] text-[11px] text-[#C9CFDA]/60 hover:border-white/[0.15] hover:text-[#F7F8FA] transition-all"
               >
-                Edit setup
+                {t.editSetup}
               </button>
             )}
             {/* Fan mode toggle */}
@@ -565,11 +587,10 @@ export const InfosysDemoPage: React.FC = () => {
               </div>
               <div className="text-center">
                 <h3 className="font-head text-[18px] font-bold text-[#F7F8FA]">
-                  Start a new tactical analysis
+                  {t.startAnalysis}
                 </h3>
                 <p className="text-[13px] text-[#C9CFDA]/50 mt-2 max-w-sm leading-relaxed">
-                  Set up the match scenario, then tag points in real-time with
-                  AI predictions updating after every point.
+                  {t.startAnalysisDesc}
                 </p>
               </div>
               <button
@@ -577,10 +598,10 @@ export const InfosysDemoPage: React.FC = () => {
                 className="flex items-center gap-2.5 px-6 py-3 rounded-[14px] bg-[#D4FF3A] text-[#0B1220] text-[14px] font-bold hover:bg-[#C4EF2A] hover:scale-[1.02] transition-all shadow-[0_6px_24px_rgba(212,255,58,0.3)]"
               >
                 <TacticsIcon size={18} />
-                Set Up Match
+                {t.setup}
               </button>
               <div className="flex flex-col items-center gap-2 mt-2">
-                <span className="text-[10px] text-[#C9CFDA]/30 uppercase tracking-widest">or jump to a preset</span>
+                <span className="text-[10px] text-[#C9CFDA]/30 uppercase tracking-widest">{t.jumpPreset}</span>
                 <div className="flex flex-wrap justify-center gap-2">
                   {scenarios.map((s) => (
                     <button
@@ -609,7 +630,7 @@ export const InfosysDemoPage: React.FC = () => {
                 <div className="w-16 h-16 rounded-full border-[3px] border-[#D4FF3A]/10 border-t-[#D4FF3A] animate-spin" />
                 <AIIcon size={24} className="absolute inset-0 m-auto text-[#D4FF3A]/60" />
               </div>
-              <p className="text-[13px] text-[#C9CFDA]/60">Calculating prediction…</p>
+              <p className="text-[13px] text-[#C9CFDA]/60">{t.calculating}</p>
             </div>
           </div>
         )}
@@ -631,14 +652,14 @@ export const InfosysDemoPage: React.FC = () => {
                       </div>
                       <div>
                         <h4 className="font-head text-[15px] font-bold text-[#F7F8FA]">
-                          AI Prediction Offline
+                          {t.aiPredOffline}
                         </h4>
                         <p className="text-[12px] text-[#C9CFDA]/60 mt-1 max-w-[340px]">
-                          La predizione tattica real-time richiede una connessione attiva col backend.
+                          {t.aiPredOfflineDesc}
                         </p>
                       </div>
                       <div className="text-[11px] text-[#22C55E]/90 bg-[#22C55E]/05 border border-[#22C55E]/10 rounded-lg py-1.5 px-3 max-w-[360px] leading-relaxed">
-                        🟢 <strong>Scoring Engine Locale Attivo</strong>: il tracciamento del punteggio, le statistiche ed export CSV/JSON continuano a funzionare regolarmente offline a bordo campo.
+                        🟢 <strong>{t.localEngineActive}</strong>: {t.localEngineDesc}
                       </div>
                       <div className="flex items-center gap-2 mt-2 pt-2.5 border-t border-white/[0.04] w-full justify-center">
                         <span className="text-[11px] text-[#C9CFDA]/50">Abilita simulazione offline:</span>
@@ -649,7 +670,7 @@ export const InfosysDemoPage: React.FC = () => {
                           }}
                           className="px-2.5 py-1 text-[10px] font-semibold rounded-md border border-[#D4FF3A]/20 bg-[#D4FF3A]/05 text-[#D4FF3A] hover:bg-[#D4FF3A]/10 transition-all"
                         >
-                          Attiva Demo
+                          {t.enableDemo}
                         </button>
                       </div>
                     </div>
@@ -670,7 +691,7 @@ export const InfosysDemoPage: React.FC = () => {
                             }}
                             className="text-[9px] underline text-[#C9CFDA]/40 hover:text-[#C9CFDA]/60 transition-all"
                           >
-                            Disattiva simulazione
+                            {t.disableDemo}
                           </button>
                         </div>
                       )}
@@ -688,7 +709,7 @@ export const InfosysDemoPage: React.FC = () => {
                         className="text-[11px] font-semibold tracking-[0.18em] uppercase -mt-1 transition-colors duration-500"
                         style={{ color: probColor(prediction.probability), opacity: 0.65 }}
                       >
-                        Next-point win probability
+                        {t.nextPointProb}
                       </span>
                       {/* Probability gauge bar */}
                       <div className="w-full max-w-[280px] mx-auto mt-1.5">
@@ -750,7 +771,7 @@ export const InfosysDemoPage: React.FC = () => {
                   <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full" style={{ background: "rgba(212,255,58,0.65)" }} />
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className={label}>Recommended pattern</div>
+                      <div className={label}>{t.recommendedPattern}</div>
                       <div className="font-head text-[15px] font-bold text-[#F7F8FA] mt-0.5 leading-snug">
                         {prediction.patternName}
                       </div>
@@ -781,7 +802,7 @@ export const InfosysDemoPage: React.FC = () => {
               {/* Pattern alternatives */}
               {prediction && !prediction.predictionUnavailable && patterns && patterns.length > 0 && (
                 <div className={cardSm}>
-                  <div className={label}>Tactical alternatives</div>
+                  <div className={label}>{t.alternatives}</div>
                   <div className="flex flex-col gap-1.5">
                     {patterns.map((p, i) => (
                       <div
@@ -878,7 +899,7 @@ export const InfosysDemoPage: React.FC = () => {
                 <div className={`${card} items-center justify-center py-10`}>
                   <div className="flex items-center gap-3">
                     <span className="w-5 h-5 border-2 border-[#D4FF3A]/30 border-t-[#D4FF3A] rounded-full animate-spin" />
-                    <span className="text-[13px] text-[#C9CFDA]/50">Computing next prediction…</span>
+                    <span className="text-[13px] text-[#C9CFDA]/50">{t.calculating}</span>
                   </div>
                 </div>
               )}
@@ -911,7 +932,7 @@ export const InfosysDemoPage: React.FC = () => {
                       {selectedScenario.player1.split(" ").slice(-1)[0]}
                     </span>
                     <span className="text-[8px] uppercase tracking-[0.28em] font-bold shrink-0" style={{ color: "rgba(201,207,218,0.35)" }}>
-                      Match Statistics
+                      {t.matchStats}
                     </span>
                     <span className="font-head text-[13px] font-bold text-[#C9CFDA]/50 truncate max-w-[38%] uppercase tracking-wide text-right">
                       {selectedScenario.player2.split(" ").slice(-1)[0]}
@@ -922,7 +943,7 @@ export const InfosysDemoPage: React.FC = () => {
 
                   {/* Stat rows */}
                   <div className="flex flex-col gap-3.5">
-                    <StatBar label="Points Won" p1={atpStats.p1Won} p2={atpStats.p2Won} />
+                    <StatBar label={t.pointsWon} p1={atpStats.p1Won} p2={atpStats.p2Won} />
                     {(atpStats.p1Win + atpStats.p2Win) > 0 && (
                       <StatBar label="Winners" p1={atpStats.p1Win} p2={atpStats.p2Win} />
                     )}
@@ -931,7 +952,7 @@ export const InfosysDemoPage: React.FC = () => {
                     )}
                     {atpStats.p1SvcPct !== null && atpStats.p2SvcPct !== null && (
                       <StatBar
-                        label="Serve Pts Won"
+                        label={t.serveWon}
                         p1={atpStats.p1SvcPct}
                         p2={atpStats.p2SvcPct}
                         fmt={(v) => `${v}%`}
@@ -945,7 +966,7 @@ export const InfosysDemoPage: React.FC = () => {
                   {/* Points total footer */}
                   <div className="flex items-center justify-center gap-2 pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
                     <span className="text-[9px] uppercase tracking-widest" style={{ color: "rgba(201,207,218,0.25)" }}>
-                      {totalPoints} {totalPoints === 1 ? "point" : "points"} played
+                      {totalPoints} {t.pointsPlayed}
                     </span>
                   </div>
                 </div>
@@ -959,7 +980,7 @@ export const InfosysDemoPage: React.FC = () => {
               {pointHistory.length > 0 && (
                 <div className={cardSm}>
                   <div className="flex items-center justify-between">
-                    <span className={label}>Point history</span>
+                    <span className={label}>{t.pointHistory}</span>
                     <span className="text-[10px] text-[#C9CFDA]/30">{totalPoints} pts</span>
                   </div>
                   <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto scrollbar-hide">
@@ -1007,7 +1028,7 @@ export const InfosysDemoPage: React.FC = () => {
 
               {/* Output mode */}
               <div className={cardSm}>
-                <div className={label}>Output mode</div>
+                <div className={label}>{t.outputMode}</div>
                 <OutputModeSwitch mode={outputMode} onChange={setOutputMode} />
                 <InsightDisplay mode={outputMode} insights={insights} />
               </div>
@@ -1083,14 +1104,14 @@ export const InfosysDemoPage: React.FC = () => {
           <div className="max-w-4xl mx-auto flex items-center justify-center gap-3 py-2">
             <span className="text-[16px]">🏆</span>
             <span className="font-head text-[14px] font-bold text-[#D4FF3A]">
-              Match complete — {matchState.winner === 1 ? selectedScenario?.player1 : selectedScenario?.player2} wins!
+              {matchState.winner === 1 ? selectedScenario?.player1 : selectedScenario?.player2} {t.matchWins}!
             </span>
             <span className="text-[12px] text-[#C9CFDA]/50">{scoringDisplay.fullScore}</span>
             <button
               onClick={handleReset}
               className="ml-3 px-3 py-1.5 rounded-[8px] border border-[#D4FF3A]/30 text-[#D4FF3A] text-[11px] font-bold hover:bg-[#D4FF3A]/10 transition-all"
             >
-              New Match
+              {t.newMatch}
             </button>
           </div>
         </div>
@@ -1105,7 +1126,7 @@ export const InfosysDemoPage: React.FC = () => {
         stepTitle="Set up match scenario"
         stepSubtitle="Choose a preset or configure a custom match situation"
         onNext={canConfirm ? handleConfirmScenario : null}
-        nextLabel={canConfirm ? "Confirm & Start Live" : "Enter both player names"}
+        nextLabel={canConfirm ? t.confirmStart : t.startAnalysis}
         nextDisabled={!canConfirm}
         direction="forward"
       >

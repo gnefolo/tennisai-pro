@@ -91,7 +91,7 @@ export const QuickTagBar: React.FC<QuickTagBarProps> = ({
 
       {/* ── Quick Tag Bar — 2-row layout for tablet ────────────── */}
       <div className={`quick-tag-bar ${flashConfirm ? "tag-confirm-flash" : ""}`}>
-        <div className="max-w-4xl mx-auto flex flex-col gap-2">
+        <div className="max-w-4xl mx-auto flex flex-col gap-2 pr-20 lg:pr-24">
 
           {/* ── Row 1: Outcome + Finish + Rally + [TAG + Undo] ── */}
           <div className="flex items-center gap-2">

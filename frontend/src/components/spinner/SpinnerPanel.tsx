@@ -52,6 +52,21 @@ function buildMatchContext(mode: AppMode): string {
       }
       return lines.join("\n");
     }
+    if (mode === "infosysDemo") {
+      const raw = localStorage.getItem("tennisai_infosys_context");
+      if (!raw) return "";
+      const s = JSON.parse(raw);
+      const lines: string[] = [];
+      if (s.player1 && s.player2) lines.push(`Match: ${s.player1} vs ${s.player2}`);
+      if (s.surface) lines.push(`Superficie: ${s.surface}`);
+      if (s.score) lines.push(`Punteggio: ${s.score}`);
+      if (s.totalPoints !== undefined) lines.push(`Punti giocati: ${s.totalPoints}`);
+      if (s.winRate !== undefined) lines.push(`Win rate: ${s.winRate}%`);
+      if (s.prediction !== undefined) lines.push(`Win prob prossimo punto: ${Math.round(s.prediction * 100)}%`);
+      if (s.momentum) lines.push(`Momentum: ${s.momentum}`);
+      if (s.patternName) lines.push(`Pattern suggerito: ${s.patternName}`);
+      return lines.join("\n");
+    }
     return "";
   } catch {
     return "";
@@ -170,7 +185,7 @@ export const SpinnerPanel: React.FC<SpinnerPanelProps> = ({ isOpen, onClose, mod
       {/* Floating panel — anchored bottom-right, above button group */}
       <div
         className={`
-          fixed z-50
+          fixed z-[90]
           right-4 lg:right-[88px]
           bottom-[76px] lg:bottom-6
           w-[320px] lg:w-[360px]
