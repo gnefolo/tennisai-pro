@@ -47,6 +47,7 @@ interface LiveMatchSetupProps {
     onRoundChange: (value: string) => void;
     onSaveNewPlayer: () => void;
     onRegisterSession: () => void;
+    onImport?: (file: File) => void;
 }
 
 // ─── DESIGN TOKEN costanti ───────────────────────────────────────────────────
@@ -108,7 +109,17 @@ const LiveMatchSetup: React.FC<LiveMatchSetupProps> = ({
     onRoundChange,
     onSaveNewPlayer,
     onRegisterSession,
+    onImport,
 }) => {
+    const importInputRef = React.useRef<HTMLInputElement>(null);
+    const handleImportClick = () => importInputRef.current?.click();
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && onImport) {
+            onImport(file);
+            e.target.value = "";
+        }
+    };
     return (
         <div className="flex flex-col gap-4">
             <div className={shellCard}>
@@ -359,7 +370,7 @@ const LiveMatchSetup: React.FC<LiveMatchSetupProps> = ({
                     )}
 
                     {/* ── CTA principale ── */}
-                    <div className="flex justify-center pt-2">
+                    <div className="flex flex-col items-center gap-3 pt-2">
                         <button
                             onClick={onRegisterSession}
                             disabled={!activePlayer || !opponentName.trim()}
@@ -371,6 +382,23 @@ const LiveMatchSetup: React.FC<LiveMatchSetupProps> = ({
                             Avvia match live
                             <ArrowRightIcon size={18} />
                         </button>
+                        {onImport && (
+                            <>
+                                <input
+                                    ref={importInputRef}
+                                    type="file"
+                                    accept=".json"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+                                <button
+                                    onClick={handleImportClick}
+                                    className="inline-flex items-center gap-2 px-6 py-2 rounded-[var(--r-pill)] text-xs font-semibold tracking-wide border border-white/[0.12] text-fog/60 hover:text-fog hover:border-white/25 transition-all duration-[var(--dur-fast)]"
+                                >
+                                    Importa partita JSON
+                                </button>
+                            </>
+                        )}
                     </div>
 
                 </div>

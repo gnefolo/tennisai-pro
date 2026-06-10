@@ -633,6 +633,73 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
     setIsSettingUp(true);
   };
 
+  // ── Importazione partita da file JSON (formato tennisai_import_v1) ──────────
+  const handleImportMatch = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (data.format !== "tennisai_import_v1") {
+        setError("Formato file non valido. Usa un file prodotto da atp_to_tennisai.py.");
+        return;
+      }
+      // Carica player
+      if (data.player) {
+        const p: LivePlayer = data.player;
+        const updatedPlayers = [...players.filter((x) => x.id !== p.id), p];
+        persistPlayers(updatedPlayers);
+        setSelectedPlayerId(p.id);
+      }
+      // Carica sessione
+      if (data.session) {
+        const s: LiveMatchSession = data.session;
+        const updatedSessions = [...sessions.filter((x) => x.id !== s.id), s];
+        persistSessions(updatedSessions);
+        setOpponentName(s.opponentName);
+        setTournamentName(s.tournament);
+        setSurface(s.surface as Surface);
+        setMatchType(s.matchType as MatchType);
+        setFirstServer(s.firstServer as "me" | "opponent");
+        setRound(s.round ?? "");
+      }
+      // Carica stato live
+      const ls = data.liveState;
+      const sessionId: string = ls.currentSessionId ?? data.session?.id ?? "";
+      setCurrentSessionId(sessionId);
+      setSetNumber(ls.setNumber ?? 1);
+      setGameNumber(ls.gameNumber ?? 1);
+      setPointNumber(ls.pointNumber ?? 1);
+      setSetsMe(ls.setsMe ?? 0);
+      setSetsOpp(ls.setsOpp ?? 0);
+      setGamesMe(ls.gamesMe ?? 0);
+      setGamesOpp(ls.gamesOpp ?? 0);
+      setPointScoreMe((ls.pointScoreMe ?? "0") as PointScore);
+      setPointScoreOpp((ls.pointScoreOpp ?? "0") as PointScore);
+      setRecordedPoints(ls.recordedPoints ?? []);
+      setIsMatchOver(ls.isMatchOver ?? false);
+      setMatchWinner(ls.matchWinner ?? null);
+      // Persisti su localStorage
+      persistLiveState({
+        currentSessionId: sessionId,
+        setNumber: ls.setNumber ?? 1,
+        gameNumber: ls.gameNumber ?? 1,
+        pointNumber: ls.pointNumber ?? 1,
+        setsMe: ls.setsMe ?? 0,
+        setsOpp: ls.setsOpp ?? 0,
+        gamesMe: ls.gamesMe ?? 0,
+        gamesOpp: ls.gamesOpp ?? 0,
+        pointScoreMe: (ls.pointScoreMe ?? "0") as PointScore,
+        pointScoreOpp: (ls.pointScoreOpp ?? "0") as PointScore,
+        recordedPoints: ls.recordedPoints ?? [],
+        isMatchOver: ls.isMatchOver ?? false,
+        matchWinner: ls.matchWinner ?? null,
+      });
+      setError(null);
+      setIsSettingUp(false);
+    } catch (err) {
+      setError(`Errore importazione: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   // ── Valori derivati per i componenti (invariati) ──────────────────────────
   const probText = prediction != null ? `${(prediction.point_win_probability * 100).toFixed(1)}%` : "-";
 
@@ -678,6 +745,7 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
         onSurfaceChange={setSurface} onMatchTypeChange={setMatchType}
         onFirstServerChange={setFirstServer} onRoundChange={setRound}
         onSaveNewPlayer={handleSaveNewPlayer} onRegisterSession={handleRegisterSession}
+        onImport={handleImportMatch}
       />
     );
   }
