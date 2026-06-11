@@ -47,6 +47,10 @@ class LiveTaggedPointRequest(BaseModel):
     flags: LiveFlagsIn
     tag: TacticalTagIn
     recent_points: Optional[List[RecordedPointIn]] = Field(default_factory=list)
+    games_me: Optional[int] = 0
+    games_opp: Optional[int] = 0
+    point_score_me: Optional[str] = "0"
+    point_score_opp: Optional[str] = "0"
 
 
 class PatternInfoOut(BaseModel):

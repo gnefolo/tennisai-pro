@@ -24,6 +24,21 @@ def clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
+_SCORE_MAP = {"0": 0, "15": 1, "30": 2, "40": 3, "Ad": 4, "ad": 4, "AD": 4, "GAME": 5}
+
+
+def encode_point_score(s: Any) -> float:
+    if s is None:
+        return 0.0
+    s = str(s).strip()
+    if s in _SCORE_MAP:
+        return float(_SCORE_MAP[s])
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def build_live_row(payload: Dict[str, Any]) -> Dict[str, Any]:
     stats = payload.get("stats", {}) or {}
     flags = payload.get("flags", {}) or {}
@@ -44,8 +59,10 @@ def build_live_row(payload: Dict[str, Any]) -> Dict[str, Any]:
         "SetNo": safe_int(payload.get("set"), 1),
         "GameNo": safe_int(payload.get("game"), 1),
         "PointNumber": safe_int(payload.get("point_number"), 1),
-        "P1GamesWon": 0,
-        "P2GamesWon": 0,
+        "P1GamesWon": safe_int(payload.get("games_me"), 0),
+        "P2GamesWon": safe_int(payload.get("games_opp"), 0),
+        "P1Score_num": encode_point_score(payload.get("point_score_me", "0")),
+        "P2Score_num": encode_point_score(payload.get("point_score_opp", "0")),
         "ServeNumber": safe_int(payload.get("serve_number"), 1),
         "RallyCount": rally_count,
         "rally_missing": rally_missing,

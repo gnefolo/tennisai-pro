@@ -21,6 +21,21 @@ MODEL_PATH = BASE_DIR / "tactical_model_xgb_temporal.pkl"
 REPORT_PATH = BASE_DIR / "tactical_model_xgb_temporal_report.json"
 
 
+_SCORE_MAP = {"0": 0, "15": 1, "30": 2, "40": 3, "AD": 4, "Ad": 4, "ad": 4, "GAME": 5}
+
+
+def encode_score(s) -> float:
+    if pd.isna(s):
+        return 0.0
+    s = str(s).strip()
+    if s in _SCORE_MAP:
+        return float(_SCORE_MAP[s])
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -35,6 +50,9 @@ def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
         return 2
 
     df["rally_bucket_num"] = df["RallyCount"].apply(bucket_rally)
+
+    df["P1Score_num"] = df["P1Score"].apply(encode_score)
+    df["P2Score_num"] = df["P2Score"].apply(encode_score)
 
     df["score_pressure_index"] = (
         df["is_break_point"].fillna(0) * 2
@@ -149,7 +167,7 @@ def main():
         "model_type": "CalibratedClassifierCV",
         "calibration_method": "isotonic",
         "features": WIN_FEATURES,
-        "version": "2.5.0",
+        "version": "3.0.0",
         "target": "point_won",
         "split_type": "temporal_match_split",
         "base_metrics": base_metrics,

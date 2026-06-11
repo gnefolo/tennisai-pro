@@ -4,6 +4,8 @@ WIN_FEATURES = [
     "PointNumber",
     "P1GamesWon",
     "P2GamesWon",
+    "P1Score_num",
+    "P2Score_num",
     "ServeNumber",
     "RallyCount",
     "rally_missing",
