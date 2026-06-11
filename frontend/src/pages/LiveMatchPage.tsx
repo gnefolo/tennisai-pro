@@ -101,6 +101,7 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
   const [setsOpp, setSetsOpp] = useState<number>(0);
   const [gamesMe, setGamesMe] = useState<number>(0);
   const [gamesOpp, setGamesOpp] = useState<number>(0);
+  const [prevSetsGames, setPrevSetsGames] = useState<number>(0);
   const [pointScoreMe, setPointScoreMe] = useState<PointScore>("0");
   const [pointScoreOpp, setPointScoreOpp] = useState<PointScore>("0");
 
@@ -136,7 +137,7 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
   const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
 
   const totalGamesInSet = gamesMe + gamesOpp;
-  const isServerSwapped = totalGamesInSet % 2 !== 0;
+  const isServerSwapped = (prevSetsGames + totalGamesInSet) % 2 !== 0;
   const onServe: "me" | "opponent" = useMemo(() => {
     if (firstServer === "me") return isServerSwapped ? "opponent" : "me";
     return isServerSwapped ? "me" : "opponent";
@@ -228,6 +229,7 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
         setRecordedPoints(parsed.recordedPoints || []);
         setIsMatchOver(parsed.isMatchOver || false);
         setMatchWinner(parsed.matchWinner || null);
+        setPrevSetsGames(parsed.prevSetsGames ?? 0);
         if (parsed.currentSessionId) setIsSettingUp(false);
       }
     } catch (e) { console.warn("Impossibile leggere lo stato live persistito", e); }
@@ -290,13 +292,13 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
   // ── persist live state (invariato) ───────────────────────────────────────
   useEffect(() => {
     if (!currentSessionId) return;
-    persistLiveState({ currentSessionId, setNumber, gameNumber, pointNumber, setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp, recordedPoints, isMatchOver, matchWinner });
+    persistLiveState({ currentSessionId, setNumber, gameNumber, pointNumber, setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp, recordedPoints, isMatchOver, matchWinner, prevSetsGames });
     if (currentSessionId) {
       const map = readMatchRecordMap();
       map[currentSessionId] = { sessionId: currentSessionId, updatedAt: new Date().toISOString(), setNumber, gameNumber, pointNumber, setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp, recordedPoints, isMatchOver, matchWinner };
       persistMatchRecordMap(map);
     }
-  }, [currentSessionId, setNumber, gameNumber, pointNumber, setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp, recordedPoints, isMatchOver, matchWinner]);
+  }, [currentSessionId, setNumber, gameNumber, pointNumber, setsMe, setsOpp, gamesMe, gamesOpp, pointScoreMe, pointScoreOpp, recordedPoints, isMatchOver, matchWinner, prevSetsGames]);
 
   // ── Handlers (invariati) ─────────────────────────────────────────────────
   const handleSaveNewPlayer = () => {
@@ -482,8 +484,10 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
     let myG = gamesMe, opG = gamesOpp, myS = setsMe, opS = setsOpp;
     let currSetNum = setNumber, currGameNum = gameNumber;
     const setsToWin = matchType === "BO5" ? 3 : 2;
+    let prevSetsGamesAdd = 0;
     const winSet = (who: "me" | "opponent") => {
       if (who === "me") myS += 1; else opS += 1;
+      prevSetsGamesAdd += myG + opG;
       myG = 0; opG = 0; currSetNum += 1; currGameNum = 1;
     };
     const winGame = (who: "me" | "opponent") => {
@@ -524,6 +528,7 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
     setPointScoreMe(myP); setPointScoreOpp(opP);
     setGamesMe(myG); setGamesOpp(opG);
     setSetsMe(myS); setSetsOpp(opS);
+    if (prevSetsGamesAdd > 0) setPrevSetsGames((prev) => prev + prevSetsGamesAdd);
     const matchJustOver = myS >= setsToWin || opS >= setsToWin;
     if (!matchJustOver) {
       setSetNumber(currSetNum); setGameNumber(currGameNum);
@@ -537,10 +542,21 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
     if (recordedPoints.length === 0) { setError("Non ci sono punti da correggere."); return; }
     setError(null);
     const lastPoint = recordedPoints[recordedPoints.length - 1];
-    setRecordedPoints((prev) => prev.slice(0, -1));
+    const remaining = recordedPoints.slice(0, -1);
+    setRecordedPoints(remaining);
     setSetNumber(lastPoint.set); setGameNumber(lastPoint.game); setPointNumber(lastPoint.pointNumber);
     setSetsMe(lastPoint.setScoreMe); setSetsOpp(lastPoint.setScoreOpp);
     setGamesMe(lastPoint.gameScoreMe); setGamesOpp(lastPoint.gameScoreOpp);
+    // Recompute prevSetsGames from remaining points for the restored set position
+    let computedPrevSetsGames = 0;
+    for (let s = 1; s < lastPoint.set; s++) {
+      const setPoints = remaining.filter((p) => p.set === s);
+      if (setPoints.length > 0) {
+        const lp = setPoints[setPoints.length - 1];
+        computedPrevSetsGames += lp.gameScoreMe + lp.gameScoreOpp + 1;
+      }
+    }
+    setPrevSetsGames(computedPrevSetsGames);
     setPointScoreMe(lastPoint.pointScoreMe); setPointScoreOpp(lastPoint.pointScoreOpp);
     setPendingWinner(lastPoint.isPointWon === 1 ? "me" : lastPoint.isPointWon === 0 ? "opponent" : null);
     setMacroPattern(lastPoint.macroPattern ?? null); setFinishType(lastPoint.finishType ?? null);
@@ -677,6 +693,18 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
       setRecordedPoints(ls.recordedPoints ?? []);
       setIsMatchOver(ls.isMatchOver ?? false);
       setMatchWinner(ls.matchWinner ?? null);
+      // Compute prevSetsGames from imported points
+      const importedPoints: RecordedPoint[] = ls.recordedPoints ?? [];
+      const importedSetNum: number = ls.setNumber ?? 1;
+      let importedPrevSetsGames = 0;
+      for (let s = 1; s < importedSetNum; s++) {
+        const setPoints = importedPoints.filter((p) => p.set === s);
+        if (setPoints.length > 0) {
+          const lp = setPoints[setPoints.length - 1];
+          importedPrevSetsGames += lp.gameScoreMe + lp.gameScoreOpp + 1;
+        }
+      }
+      setPrevSetsGames(importedPrevSetsGames);
       // Persisti su localStorage
       persistLiveState({
         currentSessionId: sessionId,
@@ -689,9 +717,10 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({ onOpenSpinner, bac
         gamesOpp: ls.gamesOpp ?? 0,
         pointScoreMe: (ls.pointScoreMe ?? "0") as PointScore,
         pointScoreOpp: (ls.pointScoreOpp ?? "0") as PointScore,
-        recordedPoints: ls.recordedPoints ?? [],
+        recordedPoints: importedPoints,
         isMatchOver: ls.isMatchOver ?? false,
         matchWinner: ls.matchWinner ?? null,
+        prevSetsGames: importedPrevSetsGames,
       });
       setError(null);
       setIsSettingUp(false);

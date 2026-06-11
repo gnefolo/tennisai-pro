@@ -217,6 +217,7 @@ export interface PersistedLiveState {
     recordedPoints: RecordedPoint[];
     isMatchOver?: boolean;
     matchWinner?: "me" | "opponent" | null;
+    prevSetsGames?: number;
 }
 
 export interface PersistedMatchRecord {
